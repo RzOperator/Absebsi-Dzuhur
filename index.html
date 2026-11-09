@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f6b55">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Absen Dzuhur">
+<title>Absensi Dzuhur</title>
+<style>
+:root{
+  --bg:#f2f6f3; --surface:#ffffff; --text:#12261f; --muted:#5a6e65; --border:#d8e2dc;
+  --accent:#0f6b55; --accent-ink:#ffffff; --sun:#b9801a; --sun-bg:#fbf0d8;
+  --ok:#0f6b55; --ok-bg:#dff1e8; --warn:#8a5a00; --warn-bg:#fdefc8;
+  --err:#b3261e; --err-bg:#fbe4e1; --soft:#e8f0eb;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#0d1612; --surface:#15221c; --text:#e6f0ea; --muted:#91a89c; --border:#24352c;
+    --accent:#3fb890; --accent-ink:#04150f; --sun:#e0b04f; --sun-bg:#3a2e12;
+    --ok:#5fd0a6; --ok-bg:#133326; --warn:#f0c45e; --warn-bg:#3b2f10;
+    --err:#ff958c; --err-bg:#3d1c1a; --soft:#1c2c24;
+    color-scheme:dark;
+  }
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0}
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);font-size:16px;line-height:1.45}
+h3{font-size:17px;margin:20px 0 10px;font-weight:700}
+p{margin:0 0 8px}
+.muted{color:var(--muted)}
+.hidden{display:none!important}
+
+.top{position:sticky;top:0;z-index:5;background:var(--accent);color:var(--accent-ink);padding:calc(12px + env(safe-area-inset-top)) 18px 12px}
+.top .t{font-size:19px;font-weight:700;letter-spacing:.2px}
+.top .d{font-size:13px;opacity:.85}
+
+main{padding:14px 14px calc(92px + env(safe-area-inset-bottom));max-width:640px;margin:0 auto}
+
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;display:grid;grid-template-columns:repeat(4,1fr);background:var(--surface);border-top:1px solid var(--border);padding-bottom:env(safe-area-inset-bottom)}
+.tabs button{background:none;border:0;color:var(--muted);padding:9px 2px 8px;font:inherit;font-size:12px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer}
+.tabs button svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tabs button.on{color:var(--accent);font-weight:700}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px}
+.card h3:first-child{margin-top:0}
+label{display:block;font-size:14px;font-weight:600;margin-bottom:10px}
+input,select{display:block;width:100%;margin-top:5px;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font:inherit;font-size:16px}
+input[type=checkbox]{display:inline-block;width:auto;margin:0 8px 0 0;transform:scale(1.25)}
+input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.row{display:flex;gap:8px;align-items:center}
+.row>*{flex:1;margin-top:0}
+.row.between{justify-content:space-between}
+.row.between>*{flex:0 1 auto}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:12px 16px;border-radius:12px;border:1px solid var(--border);background:var(--surface);color:var(--text);font:inherit;font-weight:600;cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.danger{color:var(--err)}
+.btn.sm{padding:7px 11px;font-size:14px;border-radius:9px}
+.btn.block{display:flex;width:100%;margin-bottom:12px}
+.btn:disabled{opacity:.45}
+
+.banner{background:var(--sun-bg);border-color:transparent}
+.banner .big{font-size:30px;font-weight:800;line-height:1.1;color:var(--sun)}
+.banner .day{font-size:15px;font-weight:600}
+
+.cam{position:relative;border-radius:14px;overflow:hidden;background:#0a1410;margin-bottom:12px;min-height:150px}
+.cam .ph{display:flex;align-items:center;justify-content:center;height:190px;color:#9db3a8;font-size:14px}
+#reader{width:100%}
+#reader video{border-radius:14px}
+
+.result{border-radius:14px;padding:14px 16px;margin-bottom:12px;border-left:6px solid}
+.result .n{font-size:22px;font-weight:800;line-height:1.2}
+.result .m{font-size:15px;margin-top:2px}
+.result.ok{background:var(--ok-bg);border-color:var(--ok);color:var(--ok)}
+.result.warn{background:var(--warn-bg);border-color:var(--warn);color:var(--warn)}
+.result.err{background:var(--err-bg);border-color:var(--err);color:var(--err)}
+.note{border-radius:12px;padding:10px 12px;margin-bottom:12px;font-size:14px;background:var(--err-bg);color:var(--err)}
+
+details.card summary{cursor:pointer;font-weight:600}
+details.card .row{margin-top:10px}
+
+.item{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:8px;width:100%;text-align:left;font:inherit;color:var(--text)}
+button.item{cursor:pointer}
+.item .who{flex:1;min-width:0}
+.item .nm{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .sub{font-size:13px;color:var(--muted)}
+.acts{display:flex;gap:6px}
+.badge{font-size:13px;font-weight:700;border-radius:20px;padding:4px 10px;white-space:nowrap}
+.badge.y{background:var(--ok-bg);color:var(--ok)}
+.badge.n{background:var(--soft);color:var(--muted)}
+.empty{text-align:center;color:var(--muted);padding:22px 10px;border:1px dashed var(--border);border-radius:12px}
+
+.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--soft);border-radius:12px;padding:4px;margin-bottom:12px}
+.seg button{border:0;background:none;padding:10px;border-radius:9px;font:inherit;font-weight:600;color:var(--muted);cursor:pointer}
+.seg button.on{background:var(--surface);color:var(--text)}
+.summary{font-size:15px;margin:4px 0 12px}
+.summary b{font-size:22px}
+table{width:100%;border-collapse:collapse;font-size:15px}
+td,th{padding:9px 6px;border-bottom:1px solid var(--border);text-align:left}
+th{font-size:13px;color:var(--muted);font-weight:600}
+td.r,th.r{text-align:right}
+
+.modal{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--surface);width:100%;max-width:520px;border-radius:20px 20px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom));text-align:center}
+#qrBox{display:inline-block;background:#fff;padding:12px;border-radius:12px;margin:8px 0 12px;line-height:0}
+#qrBox img{display:block}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom));background:var(--text);color:var(--bg);padding:10px 16px;border-radius:24px;font-size:14px;z-index:30;max-width:88%;text-align:center}
+
+#printArea{display:none}
+@media print{
+  body{background:#fff}
+  .top,main,.tabs,.modal,.toast{display:none!important}
+  #printArea{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .pcard{border:1px dashed #888;padding:10px;text-align:center;break-inside:avoid;color:#000;background:#fff;line-height:1.3}
+  .pcard img,.pcard canvas{margin:0 auto}
+  .pn{font-weight:700;font-size:13px;margin-top:6px}
+  .pm{font-size:11px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="t">Absensi Dzuhur</div>
+  <div class="d" id="hdrDate"></div>
+</header>
+
+<main id="view"></main>
+
+<nav class="tabs">
+  <button data-t="scan" onclick="go('scan')"><svg viewBox="0 0 24 24"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M4 12h16"/></svg>Scan</button>
+  <button data-t="reg" onclick="go('reg')"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>Registrasi</button>
+  <button data-t="rekap" onclick="go('rekap')"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Rekap</button>
+  <button data-t="set" onclick="go('set')"><svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>Pengaturan</button>
+</nav>
+
+<div id="modal" class="modal hidden" onclick="if(event.target===this)closeModal()"><div class="sheet" id="sheet"></div></div>
+<div id="printArea"></div>
+<div id="toast" class="toast hidden"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+/* ============ Util & penyimpanan ============ */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const DAYS = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+const KELAS = [1,2,3,4,5,6];
+const pad = n => String(n).padStart(2,'0');
+const dateStr = d => d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const timeStr = d => pad(d.getHours())+':'+pad(d.getMinutes());
+const toMin = t => { const [h,m] = t.split(':').map(Number); return h*60+m; };
+const prettyDate = ds => { const [y,m,d] = ds.split('-').map(Number); const dt = new Date(y,m-1,d); return DAYS[dt.getDay()]+', '+d+'/'+m+'/'+y; };
+
+const P = 'absensi_dzuhur_';
+const store = {mem:{}, ok:false};
+try { localStorage.setItem(P+'t','1'); localStorage.removeItem(P+'t'); store.ok = true; } catch(e) {}
+function load(k, def){
+  try { if(store.ok){ const v = localStorage.getItem(P+k); if(v !== null) return JSON.parse(v); } } catch(e) {}
+  return store.mem[k] !== undefined ? store.mem[k] : def;
+}
+function save(k, v){
+  store.mem[k] = v;
+  if(store.ok){ try { localStorage.setItem(P+k, JSON.stringify(v)); } catch(e) {} }
+}
+
+const defaultCfg = {start:'12:00', end:'14:00', limit:true, sep:';', schedule:{0:0,1:6,2:6,3:5,4:4,5:0,6:0}};
+const savedCfg = load('cfg', {});
+const state = {
+  students: load('students', []),
+  att: load('att', []),
+  cfg: Object.assign({}, defaultCfg, savedCfg, {schedule: Object.assign({}, defaultCfg.schedule, savedCfg.schedule || {})})
+};
+const persist = () => { save('students', state.students); save('att', state.att); save('cfg', state.cfg); };
+
+const todayClass = () => +state.cfg.schedule[new Date().getDay()] || 0;
+const byCode = c => state.students.find(s => s.code === c);
+const byName = (a,b) => a.name.localeCompare(b.name,'id');
+const genCode = () => {
+  const ch = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let out;
+  do {
+    const r = new Uint8Array(8); crypto.getRandomValues(r);
+    out = Array.from(r, x => ch[x % ch.length]).join('');
+  } while(byCode(out));
+  return out;
+};
+
+function toast(msg){
+  const t = $('toast'); t.textContent = msg; t.classList.remove('hidden');
+  clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.add('hidden'), 2600);
+}
+function openModal(html){ $('sheet').innerHTML = html; $('modal').classList.remove('hidden'); }
+function closeModal(){ $('modal').classList.add('hidden'); $('sheet').innerHTML = ''; }
+function download(name, text, mime){
+  const blob = new Blob([text], {type: mime});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+}
+function toCsv(rows){
+  const sep = state.cfg.sep;
+  const f = v => { v = String(v); return (v.includes(sep) || v.includes('"') || v.includes('\n')) ? '"'+v.replace(/"/g,'""')+'"' : v; };
+  return '\uFEFF' + rows.map(r => r.map(f).join(sep)).join('\r\n');
+}
+const kelasOpts = sel => KELAS.map(k => `<option value="${k}" ${k===sel?'selected':''}>Kelas ${k}</option>`).join('');
+
+/* ============ Navigasi ============ */
+let tab = 'scan';
+function go(t){
+  stopCam(); tab = t;
+  document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  ({scan:vScan, reg:vReg, rekap:vRekap, set:vSet})[t]();
+  window.scrollTo(0,0);
+}
+function hdr(){
+  const n = new Date();
+  $('hdrDate').textContent = DAYS[n.getDay()]+', '+n.getDate()+'/'+(n.getMonth()+1)+'/'+n.getFullYear();
+}
+
+/* ============ Scan ============ */
+let qr = null, camOn = false, last = {c:'', t:0}, audio = null;
+
+function vScan(){
+  $('view').innerHTML = `
+    ${store.ok ? '' : '<div class="note">Penyimpanan browser tidak tersedia. Data akan hilang saat halaman ditutup. Buka file ini langsung di Chrome atau pasang di hosting.</div>'}
+    <div class="card banner" id="banner"></div>
+    <div class="cam"><div id="ph" class="ph">Kamera belum aktif</div><div id="reader"></div></div>
+    <button class="btn primary block" id="camBtn" onclick="toggleCam()">Mulai scan</button>
+    <div id="result"></div>
+    <details class="card"><summary>Absen manual dengan NIS</summary>
+      <div class="row"><input id="man" inputmode="numeric" placeholder="Ketik NIS siswa" onkeydown="if(event.key==='Enter')manual()"><button class="btn" style="flex:0 0 auto" onclick="manual()">Absen</button></div>
+    </details>
+    <h3>Sudah absen hari ini</h3>
+    <div id="todayList"></div>`;
+  refreshScan();
+}
+
+function refreshScan(){
+  const b = $('banner'); if(!b) return;
+  const n = new Date(), d = dateStr(n), k = todayClass();
+  if(!k){
+    b.innerHTML = `<div class="day">${DAYS[n.getDay()]}</div><div class="big">Tidak ada jadwal</div><div class="muted">Absen Dzuhur tidak dibuka hari ini.</div>`;
+  } else {
+    const total = state.students.filter(s => s.kelas === k).length;
+    const hadir = state.att.filter(a => a.date === d && (byCode(a.code)||{}).kelas === k).length;
+    b.innerHTML = `<div class="day">${DAYS[n.getDay()]}</div><div class="big">Kelas ${k}</div>
+      <div class="muted">Hadir ${hadir} dari ${total} siswa${state.cfg.limit ? ', absen dibuka '+state.cfg.start+' sampai '+state.cfg.end : ''}</div>`;
+  }
+  const list = state.att.filter(a => a.date === d && byCode(a.code)).sort((x,y) => (y.time||'').localeCompare(x.time||''));
+  $('todayList').innerHTML = list.length
+    ? list.map(a => { const s = byCode(a.code); return `<div class="item"><div class="who"><div class="nm">${esc(s.name)}</div><div class="sub">Kelas ${s.kelas}</div></div><span class="badge y">${a.time || 'Manual'}</span></div>`; }).join('')
+    : '<div class="empty">Belum ada yang absen.</div>';
+}
+
+async function toggleCam(){ camOn ? await stopCam() : await startCam(); }
+async function startCam(){
+  if(typeof Html5Qrcode === 'undefined'){ showResult('err','Pemindai belum termuat','Periksa koneksi internet, lalu muat ulang halaman.'); return; }
+  try{
+    qr = new Html5Qrcode('reader');
+    await qr.start({facingMode:'environment'}, {fps:10, qrbox:(w,h) => { const s = Math.floor(Math.min(w,h)*0.75); return {width:s, height:s}; }}, onScan, () => {});
+    camOn = true; $('ph').style.display = 'none'; $('camBtn').textContent = 'Hentikan scan';
+  } catch(e){
+    qr = null; camOn = false;
+    showResult('err','Kamera tidak bisa dibuka','Izinkan akses kamera di browser. Halaman harus dibuka lewat alamat HTTPS, bukan lewat file langsung.');
+  }
+}
+async function stopCam(){
+  const q = qr; qr = null; camOn = false;
+  if(q){ try { await q.stop(); q.clear(); } catch(e) {} }
+  const p = $('ph'); if(p) p.style.display = '';
+  const b = $('camBtn'); if(b) b.textContent = 'Mulai scan';
+}
+function onScan(text){
+  const n = Date.now();
+  if(text === last.c && n - last.t < 3000) return;
+  last = {c:text, t:n};
+  const code = text.trim().replace(/^SHL:/,'');
+  attempt(byCode(code), true);
+}
+function manual(){
+  const v = ($('man').value || '').trim(); if(!v) return;
+  const s = state.students.find(x => x.nis === v);
+  attempt(s, false); $('man').value = '';
+}
+
+function attempt(s, fromQr){
+  if(!s) return showResult('err','Tidak dikenal', fromQr ? 'QR ini belum terdaftar di aplikasi.' : 'NIS tidak ditemukan.');
+  const now = new Date(), k = todayClass();
+  if(!k) return showResult('err', s.name, 'Tidak ada jadwal absen hari ini.');
+  if(s.kelas !== k) return showResult('err', s.name, 'Bukan jadwal kelasmu hari ini. Giliran hari ini kelas '+k+'.');
+  if(state.cfg.limit){
+    const m = now.getHours()*60 + now.getMinutes();
+    if(m < toMin(state.cfg.start) || m > toMin(state.cfg.end)) return showResult('err', s.name, 'Di luar jam absen ('+state.cfg.start+' sampai '+state.cfg.end+').');
+  }
+  const d = dateStr(now);
+  const ex = state.att.find(a => a.date === d && a.code === s.code);
+  if(ex) return showResult('warn', s.name, 'Sudah absen'+(ex.time ? ' pukul '+ex.time : '')+'.');
+  state.att.push({date:d, code:s.code, time:timeStr(now)});
+  persist();
+  showResult('ok', s.name, 'Hadir, Kelas '+s.kelas+' pukul '+timeStr(now));
+  refreshScan();
+}
+function showResult(type, name, msg){
+  const r = $('result'); if(!r) return;
+  r.innerHTML = `<div class="result ${type}" role="status"><div class="n">${esc(name)}</div><div class="m">${esc(msg)}</div></div>`;
+  beep(type === 'ok');
+  if(navigator.vibrate) navigator.vibrate(type === 'ok' ? 80 : [60,40,60]);
+}
+function beep(ok){
+  try{
+    audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+    const o = audio.createOscillator(), g = audio.createGain();
+    o.connect(g); g.connect(audio.destination);
+    o.frequency.value = ok ? 880 : 220; g.gain.value = 0.08;
+    o.start(); o.stop(audio.currentTime + (ok ? 0.12 : 0.3));
+  } catch(e) {}
+}
+
+/* ============ Registrasi ============ */
+let editing = null, filt = 0, lastKelas = 0;
+
+function vReg(){
+  const list = state.students.filter(s => !filt || s.kelas === filt).sort((a,b) => a.kelas - b.kelas || byName(a,b));
+  const ed = editing ? byCode(editing) : null;
+  const kSel = ed ? ed.kelas : (lastKelas || filt || todayClass() || 6);
+  $('view').innerHTML = `
+    <form class="card" onsubmit="saveStudent(event)">
+      <h3>${ed ? 'Edit siswa' : 'Registrasi siswa'}</h3>
+      <label>NIS<input id="fNis" required inputmode="numeric" autocomplete="off" value="${ed ? esc(ed.nis) : ''}"></label>
+      <label>Nama lengkap<input id="fNama" required autocomplete="off" value="${ed ? esc(ed.name) : ''}"></label>
+      <label>Kelas<select id="fKelas">${kelasOpts(kSel)}</select></label>
+      <div class="row"><button class="btn primary" type="submit">${ed ? 'Simpan perubahan' : 'Daftarkan dan buat QR'}</button>${ed ? '<button class="btn" type="button" onclick="cancelEdit()">Batal</button>' : ''}</div>
+    </form>
+    <div class="card">
+      <h3>Impor dari file CSV</h3>
+      <p class="muted">Kolom berurutan: nis, nama, kelas. Di Excel, pilih Simpan Sebagai lalu CSV.</p>
+      <input type="file" id="csvFile" accept=".csv,.txt,text/csv" onchange="importCsv(this)">
+    </div>
+    <div class="row between"><h3>Daftar siswa (${list.length})</h3>
+      <select style="width:auto" onchange="filt=+this.value;vReg()"><option value="0">Semua kelas</option>${kelasOpts(filt)}</select></div>
+    <button class="btn block" onclick="printQR()" ${list.length ? '' : 'disabled'}>Cetak QR ${filt ? 'kelas '+filt : 'semua siswa'}</button>
+    ${list.length ? list.map(s => `
+      <div class="item"><div class="who"><div class="nm">${esc(s.name)}</div><div class="sub">Kelas ${s.kelas}, NIS ${esc(s.nis)}</div></div>
+      <div class="acts"><button class="btn sm" onclick="showQR('${s.code}')">QR</button><button class="btn sm" onclick="startEdit('${s.code}')">Edit</button><button class="btn sm danger" onclick="delStudent('${s.code}')">Hapus</button></div></div>`).join('')
+      : '<div class="empty">Belum ada siswa. Daftarkan lewat formulir di atas atau impor dari CSV.</div>'}`;
+}
+function saveStudent(e){
+  e.preventDefault();
+  const nis = $('fNis').value.trim(), name = $('fNama').value.trim().replace(/\s+/g,' '), kelas = +$('fKelas').value;
+  if(!nis || !name) return;
+  const dup = state.students.find(s => s.nis === nis && s.code !== editing);
+  if(dup){ toast('NIS sudah dipakai oleh '+dup.name); return; }
+  if(editing){
+    const s = byCode(editing); s.nis = nis; s.name = name; s.kelas = kelas;
+    editing = null; persist(); vReg(); toast('Perubahan disimpan');
+  } else {
+    const s = {code:genCode(), nis, name, kelas};
+    state.students.push(s); lastKelas = kelas; persist(); vReg(); showQR(s.code);
+  }
+}
+function startEdit(c){ editing = c; vReg(); window.scrollTo(0,0); }
+function cancelEdit(){ editing = null; vReg(); }
+function delStudent(c){
+  const s = byCode(c); if(!s) return;
+  if(!confirm('Hapus '+s.name+'? Riwayat absennya juga ikut terhapus.')) return;
+  state.students = state.students.filter(x => x.code !== c);
+  state.att = state.att.filter(a => a.code !== c);
+  persist(); vReg(); toast('Siswa dihapus');
+}
+function importCsv(inp){
+  const f = inp.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    let add = 0, skip = 0;
+    String(r.result).replace(/^\uFEFF/,'').split(/\r?\n/).forEach((line, i) => {
+      if(!line.trim()) return;
+      const p = line.split(/[;,\t]/).map(x => x.trim().replace(/^"|"$/g,''));
+      const kelas = parseInt(p[2], 10);
+      if(i === 0 && isNaN(kelas)) return; /* baris judul */
+      if(p.length < 3 || !p[0] || !p[1] || !(kelas >= 1 && kelas <= 6)){ skip++; return; }
+      if(state.students.some(s => s.nis === p[0])){ skip++; return; }
+      state.students.push({code:genCode(), nis:p[0], name:p[1], kelas}); add++;
+    });
+    persist(); vReg(); toast(add+' siswa diimpor'+(skip ? ', '+skip+' dilewati' : ''));
+  };
+  r.readAsText(f);
+}
+function showQR(c){
+  const s = byCode(c); if(!s) return;
+  openModal(`
+    <div style="font-size:20px;font-weight:800">${esc(s.name)}</div>
+    <div class="muted">Kelas ${s.kelas}, NIS ${esc(s.nis)}</div>
+    <div id="qrBox"></div>
+    <div class="row"><button class="btn primary" onclick="dlQR('${s.code}')">Unduh gambar</button><button class="btn" onclick="closeModal()">Tutup</button></div>`);
+  if(typeof QRCode === 'undefined'){ $('qrBox').outerHTML = '<div class="note">Pembuat QR belum termuat. Periksa koneksi internet.</div>'; return; }
+  new QRCode($('qrBox'), {text:'SHL:'+s.code, width:220, height:220, correctLevel:QRCode.CorrectLevel.M});
+}
+function dlQR(c){
+  const s = byCode(c); if(!s || typeof QRCode === 'undefined') return;
+  const t = document.createElement('div');
+  new QRCode(t, {text:'SHL:'+s.code, width:260, height:260, correctLevel:QRCode.CorrectLevel.M});
+  const q = t.querySelector('canvas'); if(!q) return;
+  const cv = document.createElement('canvas'); cv.width = 320; cv.height = 400;
+  const x = cv.getContext('2d');
+  x.fillStyle = '#fff'; x.fillRect(0,0,320,400);
+  x.drawImage(q, 30, 20, 260, 260);
+  x.fillStyle = '#000'; x.textAlign = 'center';
+  x.font = 'bold 22px sans-serif'; x.fillText(s.name, 160, 315, 300);
+  x.font = '18px sans-serif'; x.fillText('Kelas '+s.kelas+', NIS '+s.nis, 160, 345, 300);
+  x.font = '14px sans-serif'; x.fillStyle = '#555'; x.fillText('Absensi Dzuhur', 160, 380);
+  const a = document.createElement('a');
+  a.href = cv.toDataURL('image/png');
+  a.download = 'QR_Kelas'+s.kelas+'_'+s.name.replace(/[^A-Za-z0-9]+/g,'_')+'.png';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+function printQR(){
+  if(typeof QRCode === 'undefined'){ toast('Pembuat QR belum termuat'); return; }
+  const list = state.students.filter(s => !filt || s.kelas === filt).sort((a,b) => a.kelas - b.kelas || byName(a,b));
+  const pa = $('printArea'); pa.innerHTML = '';
+  list.forEach(s => {
+    const c = document.createElement('div'); c.className = 'pcard';
+    const q = document.createElement('div'); c.appendChild(q);
+    new QRCode(q, {text:'SHL:'+s.code, width:130, height:130, correctLevel:QRCode.CorrectLevel.M});
+    const n = document.createElement('div'); n.className = 'pn'; n.textContent = s.name;
+    const m = document.createElement('div'); m.className = 'pm'; m.textContent = 'Kelas '+s.kelas+', NIS '+s.nis;
+    c.append(n, m); pa.appendChild(c);
+  });
+  setTimeout(() => window.print(), 400);
+}
+
+/* ============ Rekap ============ */
+const rk = {kelas:0, mode:'day', date:dateStr(new Date()), month:dateStr(new Date()).slice(0,7)};
+
+function schedDates(kelas, month){
+  const [y,m] = month.split('-').map(Number), n = new Date(y,m,0).getDate(), today = dateStr(new Date()), out = [];
+  for(let d = 1; d <= n; d++){
+    const dt = new Date(y, m-1, d), ds = dateStr(dt);
+    if(ds > today) break;
+    if(+state.cfg.schedule[dt.getDay()] === kelas) out.push(ds);
+  }
+  return out;
+}
+function vRekap(){
+  if(!rk.kelas) rk.kelas = todayClass() || KELAS.find(k => Object.values(state.cfg.schedule).some(v => +v === k)) || 6;
+  const sts = state.students.filter(s => s.kelas === rk.kelas).sort(byName);
+  let body = '';
+  if(rk.mode === 'day'){
+    const rec = new Map(state.att.filter(a => a.date === rk.date).map(a => [a.code, a]));
+    const hadir = sts.filter(s => rec.has(s.code)).length;
+    const dow = new Date(rk.date+'T00:00:00').getDay();
+    body = `<div class="summary"><b>${hadir}</b> hadir dari ${sts.length} siswa kelas ${rk.kelas}</div>
+      ${+state.cfg.schedule[dow] !== rk.kelas ? '<div class="note" style="background:var(--warn-bg);color:var(--warn)">Tanggal ini bukan hari jadwal kelas '+rk.kelas+'.</div>' : ''}
+      ${sts.length ? sts.map(s => { const a = rec.get(s.code); return `<button class="item" onclick="toggleManual('${s.code}')"><div class="who"><div class="nm">${esc(s.name)}</div><div class="sub">NIS ${esc(s.nis)}</div></div><span class="badge ${a ? 'y' : 'n'}">${a ? (a.time || 'Manual') : 'Belum'}</span></button>`; }).join('') : '<div class="empty">Belum ada siswa di kelas ini.</div>'}
+      <p class="muted" style="margin-top:8px;font-size:13px">Ketuk nama untuk menandai hadir manual atau membatalkannya.</p>`;
+  } else {
+    const dates = schedDates(rk.kelas, rk.month), total = dates.length;
+    const rows = sts.map(s => {
+      const cnt = state.att.filter(a => a.code === s.code && a.date.startsWith(rk.month)).length;
+      return {s, cnt, pct: total ? Math.min(100, Math.round(cnt/total*100)) : 0};
+    });
+    body = `<div class="summary"><b>${total}</b> hari jadwal kelas ${rk.kelas} sejauh ini bulan ini</div>
+      ${rows.length ? `<table><tr><th>Nama</th><th class="r">Hadir</th><th class="r">Persen</th></tr>
+      ${rows.map(r => `<tr><td>${esc(r.s.name)}</td><td class="r">${r.cnt}/${total}</td><td class="r">${r.pct}%</td></tr>`).join('')}</table>` : '<div class="empty">Belum ada siswa di kelas ini.</div>'}`;
+  }
+  $('view').innerHTML = `
+    <div class="seg"><button class="${rk.mode==='day'?'on':''}" onclick="rk.mode='day';vRekap()">Harian</button><button class="${rk.mode==='month'?'on':''}" onclick="rk.mode='month';vRekap()">Bulanan</button></div>
+    <div class="row" style="margin-bottom:12px">
+      <select onchange="rk.kelas=+this.value;vRekap()">${kelasOpts(rk.kelas)}</select>
+      ${rk.mode === 'day' ? `<input type="date" value="${rk.date}" onchange="if(this.value){rk.date=this.value;vRekap()}">` : `<input type="month" value="${rk.month}" onchange="if(this.value){rk.month=this.value;vRekap()}">`}
+    </div>
+    ${body}
+    <button class="btn block" style="margin-top:12px" onclick="exportRekap()" ${sts.length ? '' : 'disabled'}>Ekspor ke Excel (CSV)</button>`;
+}
+function toggleManual(c){
+  const s = byCode(c); if(!s) return;
+  const i = state.att.findIndex(a => a.date === rk.date && a.code === c);
+  if(i >= 0){
+    if(!confirm('Batalkan absen '+s.name+' pada '+prettyDate(rk.date)+'?')) return;
+    state.att.splice(i,1);
+  } else {
+    if(!confirm('Tandai '+s.name+' hadir pada '+prettyDate(rk.date)+'?')) return;
+    state.att.push({date:rk.date, code:c, time:'', manual:true});
+  }
+  persist(); vRekap();
+}
+function exportRekap(){
+  const sts = state.students.filter(s => s.kelas === rk.kelas).sort(byName);
+  let rows, name;
+  if(rk.mode === 'day'){
+    const rec = new Map(state.att.filter(a => a.date === rk.date).map(a => [a.code, a]));
+    rows = [['No','Nama','NIS','Kelas','Status','Jam']];
+    sts.forEach((s,i) => { const a = rec.get(s.code); rows.push([i+1, s.name, s.nis, s.kelas, a ? 'Hadir' : 'Belum', a ? (a.time || 'Manual') : '']); });
+    name = 'Absen_Dzuhur_Kelas'+rk.kelas+'_'+rk.date+'.csv';
+  } else {
+    const dates = schedDates(rk.kelas, rk.month);
+    rows = [['No','Nama','NIS','Kelas', ...dates.map(d => d.slice(8)+'/'+d.slice(5,7)), 'Hadir','Total hari','Persen']];
+    sts.forEach((s,i) => {
+      const mine = new Set(state.att.filter(a => a.code === s.code).map(a => a.date));
+      const cnt = state.att.filter(a => a.code === s.code && a.date.startsWith(rk.month)).length;
+      rows.push([i+1, s.name, s.nis, s.kelas, ...dates.map(d => mine.has(d) ? 'H' : '-'), cnt, dates.length, (dates.length ? Math.min(100, Math.round(cnt/dates.length*100)) : 0)+'%']);
+    });
+    name = 'Rekap_Dzuhur_Kelas'+rk.kelas+'_'+rk.month+'.csv';
+  }
+  download(name, toCsv(rows), 'text/csv;charset=utf-8');
+}
+
+/* ============ Pengaturan ============ */
+function vSet(){
+  const c = state.cfg;
+  const dayRows = [1,2,3,4,5,6,0].map(d => `
+    <label>${DAYS[d]}<select onchange="setSched(${d},this.value)"><option value="0">Tidak ada absen</option>${kelasOpts(+c.schedule[d])}</select></label>`).join('');
+  $('view').innerHTML = `
+    <div class="card"><h3>Jadwal kelas</h3>${dayRows}</div>
+    <div class="card"><h3>Jam absen Dzuhur</h3>
+      <label style="font-weight:400"><input type="checkbox" ${c.limit ? 'checked' : ''} onchange="state.cfg.limit=this.checked;persist()">Batasi absen hanya pada jam ini</label>
+      <div class="row"><label>Mulai<input type="time" value="${c.start}" onchange="state.cfg.start=this.value||'12:00';persist()"></label>
+      <label>Selesai<input type="time" value="${c.end}" onchange="state.cfg.end=this.value||'14:00';persist()"></label></div>
+    </div>
+    <div class="card"><h3>Format ekspor CSV</h3>
+      <label>Pemisah kolom<select onchange="state.cfg.sep=this.value;persist()"><option value=";" ${c.sep===';'?'selected':''}>Titik koma (Excel versi Indonesia)</option><option value="," ${c.sep===','?'selected':''}>Koma (Excel versi Inggris, Google Sheets)</option></select></label>
+    </div>
+    <div class="card"><h3>Cadangan data</h3>
+      <p class="muted">Data tersimpan di browser HP ini saja. Unduh cadangan secara berkala.</p>
+      <button class="btn block" onclick="backup()">Unduh cadangan (JSON)</button>
+      <label style="margin:0">Pulihkan dari cadangan<input type="file" accept=".json,application/json" onchange="restore(this)"></label>
+    </div>
+    <div class="card"><h3>Hapus data</h3>
+      <button class="btn block danger" onclick="clearAtt()">Hapus semua riwayat absen</button>
+      <button class="btn block danger" style="margin:0" onclick="clearAll()">Hapus semua data (siswa dan absen)</button>
+    </div>`;
+}
+function setSched(d, v){ state.cfg.schedule[d] = +v; persist(); toast('Jadwal '+DAYS[d]+' disimpan'); }
+function backup(){ download('cadangan-absensi-dzuhur-'+dateStr(new Date())+'.json', JSON.stringify({v:1, students:state.students, att:state.att, cfg:state.cfg}), 'application/json'); }
+function restore(inp){
+  const f = inp.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try{
+      const d = JSON.parse(r.result);
+      if(!Array.isArray(d.students) || !Array.isArray(d.att)) throw 0;
+      if(!confirm('Data saat ini akan diganti dengan isi cadangan ('+d.students.length+' siswa). Lanjutkan?')) return;
+      state.students = d.students; state.att = d.att;
+      if(d.cfg) state.cfg = Object.assign({}, defaultCfg, d.cfg, {schedule:Object.assign({}, defaultCfg.schedule, d.cfg.schedule || {})});
+      persist(); vSet(); toast('Data dipulihkan');
+    } catch(e){ toast('File cadangan tidak valid'); }
+  };
+  r.readAsText(f);
+}
+function clearAtt(){ if(confirm('Hapus semua riwayat absen? Data siswa tetap ada.')){ state.att = []; persist(); toast('Riwayat absen dihapus'); } }
+function clearAll(){ if(confirm('Hapus SEMUA data siswa dan absen? Tindakan ini tidak bisa dibatalkan.')){ state.students = []; state.att = []; persist(); toast('Semua data dihapus'); } }
+
+/* ============ Mulai ============ */
+document.addEventListener('visibilitychange', () => { if(!document.hidden){ hdr(); if(tab === 'scan') refreshScan(); } });
+hdr(); go('scan');
+</script>
+</body>
+</html>
