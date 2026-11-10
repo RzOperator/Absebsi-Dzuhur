@@ -36,6 +36,8 @@ p{margin:0 0 8px}
 .top{position:sticky;top:0;z-index:5;background:var(--accent);color:var(--accent-ink);padding:calc(12px + env(safe-area-inset-top)) 18px 12px}
 .top .t{font-size:19px;font-weight:700;letter-spacing:.2px}
 .top .d{font-size:13px;opacity:.85}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.sync{border:0;background:rgba(255,255,255,.2);background:color-mix(in srgb,var(--accent-ink) 16%,transparent);color:inherit;font:inherit;font-size:12px;border-radius:16px;padding:6px 11px;max-width:55%;text-align:right;cursor:pointer}
 
 main{padding:14px 14px calc(92px + env(safe-area-inset-bottom));max-width:640px;margin:0 auto}
 
@@ -125,8 +127,8 @@ td.r,th.r{text-align:right}
 <body>
 
 <header class="top">
-  <div class="t">Absensi Dzuhur</div>
-  <div class="d" id="hdrDate"></div>
+  <div><div class="t">Absensi Dzuhur</div><div class="d" id="hdrDate"></div></div>
+  <button class="sync" id="syncSt" onclick="syncTap()"></button>
 </header>
 
 <main id="view"></main>
@@ -210,6 +212,143 @@ function toCsv(rows){
   return '\uFEFF' + rows.map(r => r.map(f).join(sep)).join('\r\n');
 }
 const kelasOpts = sel => KELAS.map(k => `<option value="${k}" ${k===sel?'selected':''}>Kelas ${k}</option>`).join('');
+
+/* ============ Sinkron Google Sheet ============ */
+const sync = {url:load('sync_url',''), token:load('sync_token',''), outbox:load('outbox',[]), ver:-1, busy:false, st:'off', err:''};
+const enabled = () => !!(sync.url && sync.token);
+const oid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+const cfgSync = () => ({start:state.cfg.start, end:state.cfg.end, limit:state.cfg.limit, schedule:state.cfg.schedule});
+const stuOp = s => ({t:'stu', s:{code:s.code, nis:s.nis, name:s.name, kelas:s.kelas}});
+
+function queue(op){
+  if(!enabled()) return;
+  op.id = oid(); sync.outbox.push(op); save('outbox', sync.outbox);
+  setStatus(); scheduleSync();
+}
+function queueCfg(){
+  if(!enabled()) return;
+  sync.outbox = sync.outbox.filter(o => o.t !== 'cfg');
+  queue({t:'cfg', cfg:cfgSync()});
+}
+function cfgChanged(){ persist(); queueCfg(); }
+function fullOps(){
+  return [{t:'cfg', cfg:cfgSync()}, ...state.students.map(stuOp),
+    ...state.att.map(a => ({t:'att', a:{date:a.date, code:a.code, time:a.time || '', manual:!!a.manual}}))]
+    .map(o => Object.assign(o, {id:oid()}));
+}
+
+let syncTimer;
+function scheduleSync(){ clearTimeout(syncTimer); syncTimer = setTimeout(() => doSync(), 1200); }
+function syncTap(){ if(!enabled()) go('set'); else doSync(); }
+function setStatus(s){
+  if(s) sync.st = s;
+  const b = $('syncSt'); if(!b) return;
+  const n = sync.outbox.length, q = n ? ' ('+n+' menunggu)' : '';
+  b.textContent = {off:'Belum terhubung', syncing:'Menyinkronkan...', ok:'Tersinkron'+q, offline:'Offline'+q, err:'Gagal sinkron'+q}[enabled() ? sync.st : 'off'];
+  b.title = sync.err || '';
+}
+
+async function callServer(ops, ver, url = sync.url, token = sync.token){
+  const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 30000);
+  try{
+    const r = await fetch(url, {method:'POST', body:JSON.stringify({token, ops, ver}), signal:ctl.signal});
+    const txt = await r.text();
+    try{ return JSON.parse(txt); }
+    catch(e){ throw new Error('Respons server tidak valid. Pastikan akses Web App diatur ke Anyone dan alamatnya berakhiran /exec.'); }
+  } catch(e){
+    if(e instanceof TypeError) throw new Error('Tidak bisa menjangkau server. Periksa internet dan alamat Web App.');
+    throw e;
+  } finally { clearTimeout(tm); }
+}
+
+async function doSync(){
+  if(!enabled() || sync.busy) return;
+  if(!navigator.onLine){ setStatus('offline'); return; }
+  sync.busy = true; setStatus('syncing');
+  const sent = sync.outbox.slice();
+  try{
+    const res = await callServer(sent, sync.ver);
+    if(!res.ok) throw new Error(res.error || 'Server menolak permintaan');
+    applyServer(res, new Set(sent.map(o => o.id)));
+    sync.err = ''; setStatus('ok');
+  } catch(e){
+    sync.err = e.name === 'AbortError' ? 'Waktu habis' : String(e.message || e);
+    setStatus(navigator.onLine ? 'err' : 'offline');
+  } finally {
+    sync.busy = false;
+    if(sync.st === 'ok' && sync.outbox.length) scheduleSync();
+  }
+}
+
+function applyServer(res, sentIds){
+  sync.ver = res.ver;
+  if(res.same) return;
+  const before = JSON.stringify([state.students, state.att, state.cfg]);
+  const remaining = sync.outbox.filter(o => !sentIds.has(o.id));
+  state.students = res.students;
+  state.att = res.att.map(a => ({date:a.date, code:a.code, time:a.time || '', manual:!!a.manual}));
+  if(res.cfg) state.cfg = Object.assign({}, state.cfg, res.cfg, {schedule:Object.assign({}, defaultCfg.schedule, res.cfg.schedule || {})});
+  remaining.forEach(applyLocal);
+  sync.outbox = remaining; save('outbox', remaining);
+  persist();
+  if(JSON.stringify([state.students, state.att, state.cfg]) !== before) refreshViews();
+}
+function applyLocal(op){
+  if(op.t === 'stu'){ const i = state.students.findIndex(s => s.code === op.s.code); if(i >= 0) state.students[i] = Object.assign({}, op.s); else state.students.push(Object.assign({}, op.s)); }
+  else if(op.t === 'stuDel'){ state.students = state.students.filter(s => s.code !== op.code); state.att = state.att.filter(a => a.code !== op.code); }
+  else if(op.t === 'att'){ if(!state.att.some(a => a.date === op.a.date && a.code === op.a.code)) state.att.push(Object.assign({}, op.a)); }
+  else if(op.t === 'attDel'){ state.att = state.att.filter(a => !(a.date === op.date && a.code === op.code)); }
+  else if(op.t === 'cfg'){ state.cfg = Object.assign({}, state.cfg, op.cfg); }
+  else if(op.t === 'clearAtt'){ state.att = []; }
+  else if(op.t === 'clearAll'){ state.students = []; state.att = []; }
+}
+function refreshViews(){
+  const typing = /INPUT|SELECT|TEXTAREA/.test((document.activeElement || {}).tagName || '');
+  if(tab === 'scan') refreshScan();
+  else if(!typing && $('modal').classList.contains('hidden')){
+    if(tab === 'rekap') vRekap(); else if(tab === 'reg' && !editing) vReg();
+  }
+}
+
+async function connectSheet(){
+  const url = $('syUrl').value.trim(), tok = $('syTok').value.trim();
+  if(!/^https:\/\/script\.google(usercontent)?\.com\//.test(url) || !tok){ toast('Isi alamat Web App dan kode akses'); return; }
+  if(enabled() && url === sync.url && tok === sync.token){ doSync(); toast('Sinkronisasi dijalankan'); return; }
+  toast('Menghubungkan...');
+  try{
+    const res = await callServer([], -1, url, tok);
+    if(!res.ok) throw new Error(res.error || 'Gagal');
+    const serverEmpty = !res.students.length && !res.att.length;
+    const hasLocal = state.students.length || state.att.length;
+    if(!serverEmpty && state.students.length &&
+       !confirm('Google Sheet sudah berisi '+res.students.length+' siswa. Data di perangkat ini ('+state.students.length+' siswa) akan DIGANTI dengan data dari Google Sheet. Lanjutkan?')) return;
+    sync.url = url; sync.token = tok; save('sync_url', url); save('sync_token', tok);
+    sync.ver = -1; sync.outbox = []; sync.err = '';
+    if(serverEmpty){ if(hasLocal) sync.outbox = fullOps(); }
+    else {
+      applyServer(res, new Set());
+      if(!res.cfg) sync.outbox = [{t:'cfg', cfg:cfgSync(), id:oid()}];
+    }
+    save('outbox', sync.outbox);
+    setStatus('syncing'); vSet(); toast('Terhubung ke Google Sheet'); doSync();
+  } catch(e){ toast('Gagal: '+(e.message || e)); }
+}
+function disconnectSheet(){
+  if(!confirm('Putuskan dari Google Sheet? Data di perangkat ini tetap ada, tapi tidak lagi sinkron.')) return;
+  sync.url = ''; sync.token = ''; sync.outbox = []; sync.ver = -1;
+  save('sync_url', ''); save('sync_token', ''); save('outbox', []);
+  setStatus('off'); vSet(); toast('Terputus dari Google Sheet');
+}
+function syncCard(){
+  const on = enabled();
+  return `<div class="card"><h3>Sinkron Google Sheet</h3>
+    <p class="muted">${on ? 'Terhubung. Data siswa, absen, dan jadwal otomatis sama di semua perangkat.' : 'Hubungkan semua HP dan laptop ke satu Google Sheet agar datanya sama.'}</p>
+    <label>Alamat Web App<input id="syUrl" autocomplete="off" placeholder="https://script.google.com/macros/s/.../exec" value="${esc(sync.url)}"></label>
+    <label>Kode akses<input id="syTok" type="password" autocomplete="off" value="${esc(sync.token)}"></label>
+    <button class="btn primary block" onclick="connectSheet()">${on ? 'Simpan dan hubungkan ulang' : 'Hubungkan'}</button>
+    ${on ? '<div class="row"><button class="btn" onclick="doSync()">Sinkronkan sekarang</button><button class="btn danger" onclick="disconnectSheet()">Putuskan</button></div>' : ''}
+  </div>`;
+}
 
 /* ============ Navigasi ============ */
 let tab = 'scan';
@@ -302,8 +441,10 @@ function attempt(s, fromQr){
   const d = dateStr(now);
   const ex = state.att.find(a => a.date === d && a.code === s.code);
   if(ex) return showResult('warn', s.name, 'Sudah absen'+(ex.time ? ' pukul '+ex.time : '')+'.');
-  state.att.push({date:d, code:s.code, time:timeStr(now)});
+  const tm = timeStr(now);
+  state.att.push({date:d, code:s.code, time:tm});
   persist();
+  queue({t:'att', a:{date:d, code:s.code, time:tm}});
   showResult('ok', s.name, 'Hadir, Kelas '+s.kelas+' pukul '+timeStr(now));
   refreshScan();
 }
@@ -359,10 +500,10 @@ function saveStudent(e){
   if(dup){ toast('NIS sudah dipakai oleh '+dup.name); return; }
   if(editing){
     const s = byCode(editing); s.nis = nis; s.name = name; s.kelas = kelas;
-    editing = null; persist(); vReg(); toast('Perubahan disimpan');
+    editing = null; persist(); queue(stuOp(s)); vReg(); toast('Perubahan disimpan');
   } else {
     const s = {code:genCode(), nis, name, kelas};
-    state.students.push(s); lastKelas = kelas; persist(); vReg(); showQR(s.code);
+    state.students.push(s); lastKelas = kelas; persist(); queue(stuOp(s)); vReg(); showQR(s.code);
   }
 }
 function startEdit(c){ editing = c; vReg(); window.scrollTo(0,0); }
@@ -372,7 +513,7 @@ function delStudent(c){
   if(!confirm('Hapus '+s.name+'? Riwayat absennya juga ikut terhapus.')) return;
   state.students = state.students.filter(x => x.code !== c);
   state.att = state.att.filter(a => a.code !== c);
-  persist(); vReg(); toast('Siswa dihapus');
+  persist(); queue({t:'stuDel', code:c}); vReg(); toast('Siswa dihapus');
 }
 function importCsv(inp){
   const f = inp.files[0]; if(!f) return;
@@ -386,7 +527,8 @@ function importCsv(inp){
       if(i === 0 && isNaN(kelas)) return; /* baris judul */
       if(p.length < 3 || !p[0] || !p[1] || !(kelas >= 1 && kelas <= 6)){ skip++; return; }
       if(state.students.some(s => s.nis === p[0])){ skip++; return; }
-      state.students.push({code:genCode(), nis:p[0], name:p[1], kelas}); add++;
+      const ns = {code:genCode(), nis:p[0], name:p[1], kelas};
+      state.students.push(ns); queue(stuOp(ns)); add++;
     });
     persist(); vReg(); toast(add+' siswa diimpor'+(skip ? ', '+skip+' dilewati' : ''));
   };
@@ -484,9 +626,11 @@ function toggleManual(c){
   if(i >= 0){
     if(!confirm('Batalkan absen '+s.name+' pada '+prettyDate(rk.date)+'?')) return;
     state.att.splice(i,1);
+    queue({t:'attDel', date:rk.date, code:c});
   } else {
     if(!confirm('Tandai '+s.name+' hadir pada '+prettyDate(rk.date)+'?')) return;
     state.att.push({date:rk.date, code:c, time:'', manual:true});
+    queue({t:'att', a:{date:rk.date, code:c, time:'', manual:true}});
   }
   persist(); vRekap();
 }
@@ -596,11 +740,12 @@ function vSet(){
   const dayRows = [1,2,3,4,5,6,0].map(d => `
     <label>${DAYS[d]}<select onchange="setSched(${d},this.value)"><option value="0">Tidak ada absen</option>${kelasOpts(+c.schedule[d])}</select></label>`).join('');
   $('view').innerHTML = `
+    ${syncCard()}
     <div class="card"><h3>Jadwal kelas</h3>${dayRows}</div>
     <div class="card"><h3>Jam absen Dzuhur</h3>
-      <label style="font-weight:400"><input type="checkbox" ${c.limit ? 'checked' : ''} onchange="state.cfg.limit=this.checked;persist()">Batasi absen hanya pada jam ini</label>
-      <div class="row"><label>Mulai<input type="time" value="${c.start}" onchange="state.cfg.start=this.value||'12:00';persist()"></label>
-      <label>Selesai<input type="time" value="${c.end}" onchange="state.cfg.end=this.value||'14:00';persist()"></label></div>
+      <label style="font-weight:400"><input type="checkbox" ${c.limit ? 'checked' : ''} onchange="state.cfg.limit=this.checked;cfgChanged()">Batasi absen hanya pada jam ini</label>
+      <div class="row"><label>Mulai<input type="time" value="${c.start}" onchange="state.cfg.start=this.value||'12:00';cfgChanged()"></label>
+      <label>Selesai<input type="time" value="${c.end}" onchange="state.cfg.end=this.value||'14:00';cfgChanged()"></label></div>
     </div>
     <div class="card"><h3>Cadangan data</h3>
       <p class="muted">Data tersimpan di browser HP ini saja. Unduh cadangan secara berkala.</p>
@@ -612,7 +757,7 @@ function vSet(){
       <button class="btn block danger" style="margin:0" onclick="clearAll()">Hapus semua data (siswa dan absen)</button>
     </div>`;
 }
-function setSched(d, v){ state.cfg.schedule[d] = +v; persist(); toast('Jadwal '+DAYS[d]+' disimpan'); }
+function setSched(d, v){ state.cfg.schedule[d] = +v; cfgChanged(); toast('Jadwal '+DAYS[d]+' disimpan'); }
 function backup(){ download('cadangan-absensi-dzuhur-'+dateStr(new Date())+'.json', JSON.stringify({v:1, students:state.students, att:state.att, cfg:state.cfg}), 'application/json'); }
 function restore(inp){
   const f = inp.files[0]; if(!f) return;
@@ -624,17 +769,22 @@ function restore(inp){
       if(!confirm('Data saat ini akan diganti dengan isi cadangan ('+d.students.length+' siswa). Lanjutkan?')) return;
       state.students = d.students; state.att = d.att;
       if(d.cfg) state.cfg = Object.assign({}, defaultCfg, d.cfg, {schedule:Object.assign({}, defaultCfg.schedule, d.cfg.schedule || {})});
-      persist(); vSet(); toast('Data dipulihkan');
+      persist();
+      if(enabled()){ sync.outbox = [{t:'clearAll', id:oid()}, ...fullOps()]; save('outbox', sync.outbox); setStatus(); scheduleSync(); }
+      vSet(); toast('Data dipulihkan');
     } catch(e){ toast('File cadangan tidak valid'); }
   };
   r.readAsText(f);
 }
-function clearAtt(){ if(confirm('Hapus semua riwayat absen? Data siswa tetap ada.')){ state.att = []; persist(); toast('Riwayat absen dihapus'); } }
-function clearAll(){ if(confirm('Hapus SEMUA data siswa dan absen? Tindakan ini tidak bisa dibatalkan.')){ state.students = []; state.att = []; persist(); toast('Semua data dihapus'); } }
+function clearAtt(){ if(confirm('Hapus semua riwayat absen? Data siswa tetap ada.'+(enabled() ? ' Riwayat di Google Sheet juga akan terhapus.' : ''))){ state.att = []; persist(); queue({t:'clearAtt'}); toast('Riwayat absen dihapus'); } }
+function clearAll(){ if(confirm('Hapus SEMUA data siswa dan absen? Tindakan ini tidak bisa dibatalkan.'+(enabled() ? ' Data di Google Sheet dan semua perangkat lain juga akan terhapus.' : ''))){ state.students = []; state.att = []; persist(); queue({t:'clearAll'}); toast('Semua data dihapus'); } }
 
 /* ============ Mulai ============ */
-document.addEventListener('visibilitychange', () => { if(!document.hidden){ hdr(); if(tab === 'scan') refreshScan(); } });
-hdr(); go('scan');
+document.addEventListener('visibilitychange', () => { if(!document.hidden){ hdr(); if(tab === 'scan') refreshScan(); doSync(); } });
+window.addEventListener('online', () => doSync());
+window.addEventListener('offline', () => setStatus('offline'));
+setInterval(() => { if(!document.hidden) doSync(); }, 30000);
+hdr(); sync.st = enabled() ? 'syncing' : 'off'; setStatus(); go('scan'); doSync();
 </script>
 </body>
 </html>
