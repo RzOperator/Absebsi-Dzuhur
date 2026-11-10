@@ -144,6 +144,7 @@ td.r,th.r{text-align:right}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <script>
 /* ============ Util & penyimpanan ============ */
 const $ = id => document.getElementById(id);
@@ -475,7 +476,7 @@ function vRekap(){
       ${rk.mode === 'day' ? `<input type="date" value="${rk.date}" onchange="if(this.value){rk.date=this.value;vRekap()}">` : `<input type="month" value="${rk.month}" onchange="if(this.value){rk.month=this.value;vRekap()}">`}
     </div>
     ${body}
-    <button class="btn block" style="margin-top:12px" onclick="exportRekap()" ${sts.length ? '' : 'disabled'}>Ekspor ke Excel (CSV)</button>`;
+    <button class="btn block" style="margin-top:12px" onclick="exportRekap()" ${sts.length ? '' : 'disabled'}>Ekspor ke Excel (.xlsx)</button>`;
 }
 function toggleManual(c){
   const s = byCode(c); if(!s) return;
@@ -489,7 +490,86 @@ function toggleManual(c){
   }
   persist(); vRekap();
 }
-function exportRekap(){
+async function exportRekap(){
+  if(typeof ExcelJS === 'undefined'){ toast('Pustaka Excel belum termuat, mengunduh CSV'); return exportCsv(); }
+  const sts = state.students.filter(s => s.kelas === rk.kelas).sort(byName);
+  const GREEN = 'FF0F6B55', LINE = {style:'thin', color:{argb:'FFB8C7BF'}};
+  const BORDER = {top:LINE, left:LINE, bottom:LINE, right:LINE};
+  const wb = new ExcelJS.Workbook();
+  const day = rk.mode === 'day';
+  const ws = wb.addWorksheet(day ? 'Harian' : 'Bulanan', {pageSetup:{orientation: day ? 'portrait' : 'landscape', paperSize:9, fitToPage:true, fitToWidth:1, fitToHeight:0}});
+  const dates = day ? [] : schedDates(rk.kelas, rk.month);
+  const ncols = day ? 5 : 4 + dates.length + 3;
+  const widths = day ? [6,32,16,12,10] : [6,32,16, ...dates.map(() => 6), 8, 11, 10];
+  ws.columns = widths.map(w => ({width:w}));
+
+  const head = (r, text, size) => {
+    ws.mergeCells(r, 1, r, ncols);
+    const c = ws.getCell(r, 1);
+    c.value = text; c.font = {bold:true, size}; c.alignment = {horizontal:'center', vertical:'middle'};
+  };
+  head(1, 'Absensi Sholat Dzuhur', 16);
+  head(2, day ? 'Kelas '+rk.kelas+', '+prettyDate(rk.date) : 'Kelas '+rk.kelas+', bulan '+rk.month.slice(5)+'/'+rk.month.slice(0,4), 12);
+  ws.getRow(1).height = 26;
+
+  const HR = 4;
+  const hrow = ws.getRow(HR);
+  hrow.values = day ? ['No','Nama','NIS','Status','Jam'] : ['No','Nama','NIS', ...dates.map(d => d.slice(8)+'/'+d.slice(5,7)), 'Hadir','Total hari','Persen'];
+  hrow.height = 24;
+  hrow.eachCell(c => {
+    c.font = {bold:true, color:{argb:'FFFFFFFF'}};
+    c.fill = {type:'pattern', pattern:'solid', fgColor:{argb:GREEN}};
+    c.alignment = {horizontal:'center', vertical:'middle', wrapText:true};
+    c.border = BORDER;
+  });
+
+  let r = HR + 1, hadirDay = 0;
+  const rec = new Map(state.att.filter(a => a.date === rk.date).map(a => [a.code, a]));
+  sts.forEach((s, i) => {
+    const row = ws.getRow(r++);
+    if(day){
+      const a = rec.get(s.code); if(a) hadirDay++;
+      row.values = [i+1, s.name, String(s.nis), a ? 'Hadir' : 'Belum', a ? (a.time || 'Manual') : ''];
+    } else {
+      const mine = new Set(state.att.filter(a => a.code === s.code).map(a => a.date));
+      const cnt = state.att.filter(a => a.code === s.code && a.date.startsWith(rk.month)).length;
+      row.values = [i+1, s.name, String(s.nis), ...dates.map(d => mine.has(d) ? 'H' : '-'), cnt, dates.length, dates.length ? Math.min(1, cnt/dates.length) : 0];
+    }
+    row.height = 20;
+    row.eachCell({includeEmpty:true}, (c, n) => {
+      if(n > ncols) return;
+      c.border = BORDER;
+      c.alignment = {horizontal: n === 2 ? 'left' : 'center', vertical:'middle'};
+      if(day && n === 4){
+        const ok = c.value === 'Hadir';
+        c.font = {bold:true, color:{argb: ok ? 'FF0F6B55' : 'FF8A8A8A'}};
+        c.fill = {type:'pattern', pattern:'solid', fgColor:{argb: ok ? 'FFDFF1E8' : 'FFF1F1F1'}};
+      }
+      if(!day && n > 3 && n <= 3 + dates.length){
+        const ok = c.value === 'H';
+        c.font = {bold:ok, color:{argb: ok ? 'FF0F6B55' : 'FF9A9A9A'}};
+        if(ok) c.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFDFF1E8'}};
+      }
+      if(!day && n === ncols) c.numFmt = '0%';
+    });
+  });
+
+  if(day){
+    r++;
+    ws.mergeCells(r, 1, r, ncols);
+    const c = ws.getCell(r, 1);
+    c.value = 'Hadir '+hadirDay+' dari '+sts.length+' siswa';
+    c.font = {bold:true}; c.alignment = {horizontal:'left'};
+  }
+  ws.views = [{state:'frozen', xSplit:2, ySplit:HR}];
+
+  const name = day ? 'Absen_Dzuhur_Kelas'+rk.kelas+'_'+rk.date+'.xlsx' : 'Rekap_Dzuhur_Kelas'+rk.kelas+'_'+rk.month+'.xlsx';
+  try{
+    const buf = await wb.xlsx.writeBuffer();
+    download(name, buf, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  } catch(e){ toast('Gagal membuat file Excel, mengunduh CSV'); exportCsv(); }
+}
+function exportCsv(){
   const sts = state.students.filter(s => s.kelas === rk.kelas).sort(byName);
   let rows, name;
   if(rk.mode === 'day'){
@@ -521,9 +601,6 @@ function vSet(){
       <label style="font-weight:400"><input type="checkbox" ${c.limit ? 'checked' : ''} onchange="state.cfg.limit=this.checked;persist()">Batasi absen hanya pada jam ini</label>
       <div class="row"><label>Mulai<input type="time" value="${c.start}" onchange="state.cfg.start=this.value||'12:00';persist()"></label>
       <label>Selesai<input type="time" value="${c.end}" onchange="state.cfg.end=this.value||'14:00';persist()"></label></div>
-    </div>
-    <div class="card"><h3>Format ekspor CSV</h3>
-      <label>Pemisah kolom<select onchange="state.cfg.sep=this.value;persist()"><option value=";" ${c.sep===';'?'selected':''}>Titik koma (Excel versi Indonesia)</option><option value="," ${c.sep===','?'selected':''}>Koma (Excel versi Inggris, Google Sheets)</option></select></label>
     </div>
     <div class="card"><h3>Cadangan data</h3>
       <p class="muted">Data tersimpan di browser HP ini saja. Unduh cadangan secara berkala.</p>
