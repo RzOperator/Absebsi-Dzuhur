@@ -33,10 +33,9 @@ p{margin:0 0 8px}
 .muted{color:var(--muted)}
 .hidden{display:none!important}
 
-.top{position:sticky;top:0;z-index:5;background:var(--accent);color:var(--accent-ink);padding:calc(12px + env(safe-area-inset-top)) 18px 12px}
+.top{position:sticky;top:0;z-index:5;background:var(--accent);color:var(--accent-ink);padding:calc(12px + env(safe-area-inset-top)) 18px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px}
 .top .t{font-size:19px;font-weight:700;letter-spacing:.2px}
 .top .d{font-size:13px;opacity:.85}
-.top{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .sync{border:0;background:rgba(255,255,255,.2);background:color-mix(in srgb,var(--accent-ink) 16%,transparent);color:inherit;font:inherit;font-size:12px;border-radius:16px;padding:6px 11px;max-width:55%;text-align:right;cursor:pointer}
 
 main{padding:14px 14px calc(92px + env(safe-area-inset-bottom));max-width:640px;margin:0 auto}
@@ -64,7 +63,7 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
 .btn:disabled{opacity:.45}
 
 .banner{background:var(--sun-bg);border-color:transparent}
-.banner .big{font-size:30px;font-weight:800;line-height:1.1;color:var(--sun)}
+.banner .big{font-size:28px;font-weight:800;line-height:1.15;color:var(--sun)}
 .banner .day{font-size:15px;font-weight:600}
 
 .cam{position:relative;border-radius:14px;overflow:hidden;background:#0a1410;margin-bottom:12px;min-height:150px}
@@ -79,9 +78,17 @@ input:focus,select:focus,button:focus-visible,summary:focus-visible{outline:2px 
 .result.warn{background:var(--warn-bg);border-color:var(--warn);color:var(--warn)}
 .result.err{background:var(--err-bg);border-color:var(--err);color:var(--err)}
 .note{border-radius:12px;padding:10px 12px;margin-bottom:12px;font-size:14px;background:var(--err-bg);color:var(--err)}
+.note.warn{background:var(--warn-bg);color:var(--warn)}
 
 details.card summary{cursor:pointer;font-weight:600}
 details.card .row{margin-top:10px}
+details.day{border-top:1px solid var(--border);padding:10px 0}
+details.day:first-of-type{border-top:0}
+details.day summary{cursor:pointer}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--border);background:var(--bg);color:var(--text);font:inherit;font-size:14px;font-weight:600;border-radius:20px;padding:7px 13px;cursor:pointer}
+.chip.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 
 .item{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:8px;width:100%;text-align:left;font:inherit;color:var(--text)}
 button.item{cursor:pointer}
@@ -92,7 +99,7 @@ button.item{cursor:pointer}
 .badge{font-size:13px;font-weight:700;border-radius:20px;padding:4px 10px;white-space:nowrap}
 .badge.y{background:var(--ok-bg);color:var(--ok)}
 .badge.n{background:var(--soft);color:var(--muted)}
-.empty{text-align:center;color:var(--muted);padding:22px 10px;border:1px dashed var(--border);border-radius:12px}
+.empty{text-align:center;color:var(--muted);padding:22px 10px;border:1px dashed var(--border);border-radius:12px;margin-bottom:8px}
 
 .seg{display:grid;grid-template-columns:1fr 1fr;background:var(--soft);border-radius:12px;padding:4px;margin-bottom:12px}
 .seg button{border:0;background:none;padding:10px;border-radius:9px;font:inherit;font-weight:600;color:var(--muted);cursor:pointer}
@@ -106,6 +113,7 @@ td.r,th.r{text-align:right}
 
 .modal{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center}
 .sheet{background:var(--surface);width:100%;max-width:520px;border-radius:20px 20px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom));text-align:center}
+.sheet label{text-align:left}
 #qrBox{display:inline-block;background:#fff;padding:12px;border-radius:12px;margin:8px 0 12px;line-height:0}
 #qrBox img{display:block}
 
@@ -152,12 +160,17 @@ td.r,th.r{text-align:right}
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const DAYS = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
-const KELAS = [1,2,3,4,5,6];
 const pad = n => String(n).padStart(2,'0');
 const dateStr = d => d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
 const timeStr = d => pad(d.getHours())+':'+pad(d.getMinutes());
 const toMin = t => { const [h,m] = t.split(':').map(Number); return h*60+m; };
 const prettyDate = ds => { const [y,m,d] = ds.split('-').map(Number); const dt = new Date(y,m-1,d); return DAYS[dt.getDay()]+', '+d+'/'+m+'/'+y; };
+const keyOf = s => String(s).toLowerCase().replace(/\s+/g,'');
+const cleanName = s => String(s).trim().replace(/\s+/g,' ');
+function autoGroup(name){
+  const n = cleanName(name), m = n.match(/^(\d+|[IVX]+(?=\s|$))/i);
+  return m ? m[1].toUpperCase() : n;
+}
 
 const P = 'absensi_dzuhur_';
 const store = {mem:{}, ok:false};
@@ -171,18 +184,73 @@ function save(k, v){
   if(store.ok){ try { localStorage.setItem(P+k, JSON.stringify(v)); } catch(e) {} }
 }
 
-const defaultCfg = {start:'12:00', end:'14:00', limit:true, sep:';', schedule:{0:0,1:6,2:6,3:5,4:4,5:0,6:0}};
-const savedCfg = load('cfg', {});
-const state = {
-  students: load('students', []),
-  att: load('att', []),
-  cfg: Object.assign({}, defaultCfg, savedCfg, {schedule: Object.assign({}, defaultCfg.schedule, savedCfg.schedule || {})})
+const defaultCfg = {
+  start:'12:00', end:'14:00', limit:true, sep:';',
+  classes:['1','2','3','4','5','6'].map(n => ({name:n, group:n})),
+  schedule:{0:[],1:['6'],2:['6'],3:['5'],4:['4'],5:[],6:[]}
 };
+/* Rapikan pengaturan: ubah format lama (kelas berupa angka) ke format baru (nama kelas, jadwal berupa daftar) */
+function normCfg(c, students){
+  c = c || {};
+  const out = Object.assign({}, defaultCfg, c);
+  let cl = Array.isArray(c.classes)
+    ? c.classes.map(x => typeof x === 'string' ? {name:cleanName(x), group:autoGroup(x)} : {name:cleanName(x.name), group:cleanName(x.group || autoGroup(x.name))})
+    : defaultCfg.classes.map(x => Object.assign({}, x));
+  (students || []).forEach(s => { if(s.kelas && !cl.some(x => x.name === s.kelas)) cl.push({name:s.kelas, group:autoGroup(s.kelas)}); });
+  out.classes = cl;
+  const sch = {};
+  for(let d = 0; d < 7; d++){
+    let v = c.schedule ? c.schedule[d] : undefined;
+    if(v === undefined) v = defaultCfg.schedule[d];
+    if(Array.isArray(v)) v = v.map(String);
+    else if(+v) v = [String(v)];
+    else if(typeof v === 'string' && v && v !== '0') v = [v];
+    else v = [];
+    sch[d] = v.filter(n => cl.some(x => x.name === n));
+  }
+  out.schedule = sch;
+  return out;
+}
+
+const state = {
+  students: load('students', []).map(s => Object.assign({}, s, {kelas:String(s.kelas)})),
+  att: load('att', []),
+  cfg: null
+};
+state.cfg = normCfg(load('cfg', {}), state.students);
 const persist = () => { save('students', state.students); save('att', state.att); save('cfg', state.cfg); };
 
-const todayClass = () => +state.cfg.schedule[new Date().getDay()] || 0;
+/* ---- Pembantu kelas ---- */
+const classNames = () => state.cfg.classes.map(c => c.name);
+const findClass = n => state.cfg.classes.find(c => keyOf(c.name) === keyOf(n));
+const cidx = n => { const i = classNames().indexOf(n); return i < 0 ? 999 : i; };
+const todayClasses = () => state.cfg.schedule[new Date().getDay()] || [];
 const byCode = c => state.students.find(s => s.code === c);
 const byName = (a,b) => a.name.localeCompare(b.name,'id');
+const byKelasNama = (a,b) => cidx(a.kelas) - cidx(b.kelas) || byName(a,b);
+function groupsOf(){
+  const out = [];
+  state.cfg.classes.forEach(c => {
+    let o = out.find(x => x.g === c.group);
+    if(!o){ o = {g:c.group, names:[]}; out.push(o); }
+    o.names.push(c.name);
+  });
+  return out;
+}
+/* Pilihan cakupan: all | g:<kelompok> | c:<kelas> */
+function scopeOptions(sel){
+  const gs = groupsOf().filter(x => x.names.length > 1);
+  return '<option value="all"'+(sel === 'all' ? ' selected' : '')+'>Semua kelas</option>'
+    + (gs.length ? '<optgroup label="Kelompok">'+gs.map(x => '<option value="g:'+esc(x.g)+'"'+(sel === 'g:'+x.g ? ' selected' : '')+'>Kelompok '+esc(x.g)+' ('+x.names.map(esc).join(', ')+')</option>').join('')+'</optgroup>' : '')
+    + '<optgroup label="Per kelas">'+state.cfg.classes.map(c => '<option value="c:'+esc(c.name)+'"'+(sel === 'c:'+c.name ? ' selected' : '')+'>Kelas '+esc(c.name)+'</option>').join('')+'</optgroup>';
+}
+function scopeClasses(sel){
+  if(!sel || sel === 'all') return classNames();
+  if(sel.startsWith('g:')) return state.cfg.classes.filter(c => c.group === sel.slice(2)).map(c => c.name);
+  return [sel.slice(2)].filter(n => classNames().includes(n));
+}
+const kelasOpts = sel => classNames().map(n => '<option value="'+esc(n)+'"'+(n === sel ? ' selected' : '')+'>Kelas '+esc(n)+'</option>').join('');
+
 const genCode = () => {
   const ch = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let out;
@@ -199,8 +267,8 @@ function toast(msg){
 }
 function openModal(html){ $('sheet').innerHTML = html; $('modal').classList.remove('hidden'); }
 function closeModal(){ $('modal').classList.add('hidden'); $('sheet').innerHTML = ''; }
-function download(name, text, mime){
-  const blob = new Blob([text], {type: mime});
+function download(name, data, mime){
+  const blob = new Blob([data], {type: mime});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob); a.download = name;
   document.body.appendChild(a); a.click(); a.remove();
@@ -211,13 +279,12 @@ function toCsv(rows){
   const f = v => { v = String(v); return (v.includes(sep) || v.includes('"') || v.includes('\n')) ? '"'+v.replace(/"/g,'""')+'"' : v; };
   return '\uFEFF' + rows.map(r => r.map(f).join(sep)).join('\r\n');
 }
-const kelasOpts = sel => KELAS.map(k => `<option value="${k}" ${k===sel?'selected':''}>Kelas ${k}</option>`).join('');
 
 /* ============ Sinkron Google Sheet ============ */
 const sync = {url:load('sync_url',''), token:load('sync_token',''), outbox:load('outbox',[]), ver:-1, busy:false, st:'off', err:''};
 const enabled = () => !!(sync.url && sync.token);
 const oid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6);
-const cfgSync = () => ({start:state.cfg.start, end:state.cfg.end, limit:state.cfg.limit, schedule:state.cfg.schedule});
+const cfgSync = () => ({start:state.cfg.start, end:state.cfg.end, limit:state.cfg.limit, schedule:state.cfg.schedule, classes:state.cfg.classes});
 const stuOp = s => ({t:'stu', s:{code:s.code, nis:s.nis, name:s.name, kelas:s.kelas}});
 
 function queue(op){
@@ -285,20 +352,24 @@ function applyServer(res, sentIds){
   if(res.same) return;
   const before = JSON.stringify([state.students, state.att, state.cfg]);
   const remaining = sync.outbox.filter(o => !sentIds.has(o.id));
-  state.students = res.students;
+  state.students = res.students.map(s => ({code:s.code, nis:s.nis, name:s.name, kelas:String(s.kelas)}));
   state.att = res.att.map(a => ({date:a.date, code:a.code, time:a.time || '', manual:!!a.manual}));
-  if(res.cfg) state.cfg = Object.assign({}, state.cfg, res.cfg, {schedule:Object.assign({}, defaultCfg.schedule, res.cfg.schedule || {})});
+  state.cfg = normCfg(res.cfg ? Object.assign({}, state.cfg, res.cfg) : state.cfg, state.students);
   remaining.forEach(applyLocal);
   sync.outbox = remaining; save('outbox', remaining);
   persist();
   if(JSON.stringify([state.students, state.att, state.cfg]) !== before) refreshViews();
 }
 function applyLocal(op){
-  if(op.t === 'stu'){ const i = state.students.findIndex(s => s.code === op.s.code); if(i >= 0) state.students[i] = Object.assign({}, op.s); else state.students.push(Object.assign({}, op.s)); }
+  if(op.t === 'stu'){
+    const s = Object.assign({}, op.s, {kelas:String(op.s.kelas)});
+    const i = state.students.findIndex(x => x.code === s.code);
+    if(i >= 0) state.students[i] = s; else state.students.push(s);
+  }
   else if(op.t === 'stuDel'){ state.students = state.students.filter(s => s.code !== op.code); state.att = state.att.filter(a => a.code !== op.code); }
   else if(op.t === 'att'){ if(!state.att.some(a => a.date === op.a.date && a.code === op.a.code)) state.att.push(Object.assign({}, op.a)); }
   else if(op.t === 'attDel'){ state.att = state.att.filter(a => !(a.date === op.date && a.code === op.code)); }
-  else if(op.t === 'cfg'){ state.cfg = Object.assign({}, state.cfg, op.cfg); }
+  else if(op.t === 'cfg'){ state.cfg = normCfg(Object.assign({}, state.cfg, op.cfg), state.students); }
   else if(op.t === 'clearAtt'){ state.att = []; }
   else if(op.t === 'clearAll'){ state.students = []; state.att = []; }
 }
@@ -324,7 +395,7 @@ async function connectSheet(){
        !confirm('Google Sheet sudah berisi '+res.students.length+' siswa. Data di perangkat ini ('+state.students.length+' siswa) akan DIGANTI dengan data dari Google Sheet. Lanjutkan?')) return;
     sync.url = url; sync.token = tok; save('sync_url', url); save('sync_token', tok);
     sync.ver = -1; sync.outbox = []; sync.err = '';
-    if(serverEmpty){ if(hasLocal) sync.outbox = fullOps(); }
+    if(serverEmpty){ if(hasLocal || !res.cfg) sync.outbox = fullOps(); }
     else {
       applyServer(res, new Set());
       if(!res.cfg) sync.outbox = [{t:'cfg', cfg:cfgSync(), id:oid()}];
@@ -342,7 +413,7 @@ function disconnectSheet(){
 function syncCard(){
   const on = enabled();
   return `<div class="card"><h3>Sinkron Google Sheet</h3>
-    <p class="muted">${on ? 'Terhubung. Data siswa, absen, dan jadwal otomatis sama di semua perangkat.' : 'Hubungkan semua HP dan laptop ke satu Google Sheet agar datanya sama.'}</p>
+    <p class="muted">${on ? 'Terhubung. Data siswa, absen, kelas, dan jadwal otomatis sama di semua perangkat.' : 'Hubungkan semua HP dan laptop ke satu Google Sheet agar datanya sama.'}</p>
     <label>Alamat Web App<input id="syUrl" autocomplete="off" placeholder="https://script.google.com/macros/s/.../exec" value="${esc(sync.url)}"></label>
     <label>Kode akses<input id="syTok" type="password" autocomplete="off" value="${esc(sync.token)}"></label>
     <button class="btn primary block" onclick="connectSheet()">${on ? 'Simpan dan hubungkan ulang' : 'Hubungkan'}</button>
@@ -383,18 +454,19 @@ function vScan(){
 
 function refreshScan(){
   const b = $('banner'); if(!b) return;
-  const n = new Date(), d = dateStr(n), k = todayClass();
-  if(!k){
+  const n = new Date(), d = dateStr(n), ks = todayClasses();
+  if(!ks.length){
     b.innerHTML = `<div class="day">${DAYS[n.getDay()]}</div><div class="big">Tidak ada jadwal</div><div class="muted">Absen Dzuhur tidak dibuka hari ini.</div>`;
   } else {
-    const total = state.students.filter(s => s.kelas === k).length;
-    const hadir = state.att.filter(a => a.date === d && (byCode(a.code)||{}).kelas === k).length;
-    b.innerHTML = `<div class="day">${DAYS[n.getDay()]}</div><div class="big">Kelas ${k}</div>
-      <div class="muted">Hadir ${hadir} dari ${total} siswa${state.cfg.limit ? ', absen dibuka '+state.cfg.start+' sampai '+state.cfg.end : ''}</div>`;
+    const total = state.students.filter(s => ks.includes(s.kelas)).length;
+    const hadir = state.att.filter(a => a.date === d && ks.includes((byCode(a.code) || {}).kelas)).length;
+    const many = ks.length > 4;
+    b.innerHTML = `<div class="day">${DAYS[n.getDay()]}</div><div class="big">${esc(many ? ks.length+' kelas' : 'Kelas '+ks.join(', '))}</div>
+      <div class="muted">${many ? esc(ks.join(', '))+'. ' : ''}Hadir ${hadir} dari ${total} siswa${state.cfg.limit ? ', absen dibuka '+state.cfg.start+' sampai '+state.cfg.end : ''}</div>`;
   }
-  const list = state.att.filter(a => a.date === d && byCode(a.code)).sort((x,y) => (y.time||'').localeCompare(x.time||''));
+  const list = state.att.filter(a => a.date === d && byCode(a.code)).sort((x,y) => (y.time || '').localeCompare(x.time || ''));
   $('todayList').innerHTML = list.length
-    ? list.map(a => { const s = byCode(a.code); return `<div class="item"><div class="who"><div class="nm">${esc(s.name)}</div><div class="sub">Kelas ${s.kelas}</div></div><span class="badge y">${a.time || 'Manual'}</span></div>`; }).join('')
+    ? list.map(a => { const s = byCode(a.code); return `<div class="item"><div class="who"><div class="nm">${esc(s.name)}</div><div class="sub">Kelas ${esc(s.kelas)}</div></div><span class="badge y">${a.time || 'Manual'}</span></div>`; }).join('')
     : '<div class="empty">Belum ada yang absen.</div>';
 }
 
@@ -431,9 +503,9 @@ function manual(){
 
 function attempt(s, fromQr){
   if(!s) return showResult('err','Tidak dikenal', fromQr ? 'QR ini belum terdaftar di aplikasi.' : 'NIS tidak ditemukan.');
-  const now = new Date(), k = todayClass();
-  if(!k) return showResult('err', s.name, 'Tidak ada jadwal absen hari ini.');
-  if(s.kelas !== k) return showResult('err', s.name, 'Bukan jadwal kelasmu hari ini. Giliran hari ini kelas '+k+'.');
+  const now = new Date(), ks = todayClasses();
+  if(!ks.length) return showResult('err', s.name, 'Tidak ada jadwal absen hari ini.');
+  if(!ks.includes(s.kelas)) return showResult('err', s.name, 'Bukan jadwal kelasmu hari ini. Giliran hari ini: kelas '+ks.join(', ')+'.');
   if(state.cfg.limit){
     const m = now.getHours()*60 + now.getMinutes();
     if(m < toMin(state.cfg.start) || m > toMin(state.cfg.end)) return showResult('err', s.name, 'Di luar jam absen ('+state.cfg.start+' sampai '+state.cfg.end+').');
@@ -445,7 +517,7 @@ function attempt(s, fromQr){
   state.att.push({date:d, code:s.code, time:tm});
   persist();
   queue({t:'att', a:{date:d, code:s.code, time:tm}});
-  showResult('ok', s.name, 'Hadir, Kelas '+s.kelas+' pukul '+timeStr(now));
+  showResult('ok', s.name, 'Hadir, Kelas '+s.kelas+' pukul '+tm);
   refreshScan();
 }
 function showResult(type, name, msg){
@@ -465,12 +537,18 @@ function beep(ok){
 }
 
 /* ============ Registrasi ============ */
-let editing = null, filt = 0, lastKelas = 0;
+let editing = null, filt = 'all', lastKelas = '';
 
 function vReg(){
-  const list = state.students.filter(s => !filt || s.kelas === filt).sort((a,b) => a.kelas - b.kelas || byName(a,b));
+  if(!classNames().length){
+    $('view').innerHTML = `<div class="card"><h3>Belum ada kelas</h3><p class="muted">Tambahkan kelas dulu di menu Pengaturan, lalu kembali ke sini untuk mendaftarkan siswa.</p><button class="btn primary" onclick="go('set')">Buka Pengaturan</button></div>`;
+    return;
+  }
+  if(!scopeClasses(filt).length) filt = 'all';
+  const fc = scopeClasses(filt);
+  const list = state.students.filter(s => fc.includes(s.kelas)).sort(byKelasNama);
   const ed = editing ? byCode(editing) : null;
-  const kSel = ed ? ed.kelas : (lastKelas || filt || todayClass() || 6);
+  const kSel = ed ? ed.kelas : (classNames().includes(lastKelas) ? lastKelas : (fc[0] || todayClasses()[0] || classNames()[0]));
   $('view').innerHTML = `
     <form class="card" onsubmit="saveStudent(event)">
       <h3>${ed ? 'Edit siswa' : 'Registrasi siswa'}</h3>
@@ -481,21 +559,21 @@ function vReg(){
     </form>
     <div class="card">
       <h3>Impor dari file CSV</h3>
-      <p class="muted">Kolom berurutan: nis, nama, kelas. Di Excel, pilih Simpan Sebagai lalu CSV.</p>
+      <p class="muted">Kolom berurutan: nis, nama, kelas. Nama kelas harus sama dengan di aplikasi (mis. 6A). Kelas yang belum ada dibuat otomatis.</p>
       <input type="file" id="csvFile" accept=".csv,.txt,text/csv" onchange="importCsv(this)">
     </div>
     <div class="row between"><h3>Daftar siswa (${list.length})</h3>
-      <select style="width:auto" onchange="filt=+this.value;vReg()"><option value="0">Semua kelas</option>${kelasOpts(filt)}</select></div>
-    <button class="btn block" onclick="printQR()" ${list.length ? '' : 'disabled'}>Cetak QR ${filt ? 'kelas '+filt : 'semua siswa'}</button>
+      <select style="width:auto;max-width:60%" onchange="filt=this.value;vReg()">${scopeOptions(filt)}</select></div>
+    <button class="btn block" onclick="printQR()" ${list.length ? '' : 'disabled'}>Cetak QR siswa yang tampil</button>
     ${list.length ? list.map(s => `
-      <div class="item"><div class="who"><div class="nm">${esc(s.name)}</div><div class="sub">Kelas ${s.kelas}, NIS ${esc(s.nis)}</div></div>
+      <div class="item"><div class="who"><div class="nm">${esc(s.name)}</div><div class="sub">Kelas ${esc(s.kelas)}, NIS ${esc(s.nis)}</div></div>
       <div class="acts"><button class="btn sm" onclick="showQR('${s.code}')">QR</button><button class="btn sm" onclick="startEdit('${s.code}')">Edit</button><button class="btn sm danger" onclick="delStudent('${s.code}')">Hapus</button></div></div>`).join('')
       : '<div class="empty">Belum ada siswa. Daftarkan lewat formulir di atas atau impor dari CSV.</div>'}`;
 }
 function saveStudent(e){
   e.preventDefault();
-  const nis = $('fNis').value.trim(), name = $('fNama').value.trim().replace(/\s+/g,' '), kelas = +$('fKelas').value;
-  if(!nis || !name) return;
+  const nis = $('fNis').value.trim(), name = cleanName($('fNama').value), kelas = $('fKelas').value;
+  if(!nis || !name || !kelas) return;
   const dup = state.students.find(s => s.nis === nis && s.code !== editing);
   if(dup){ toast('NIS sudah dipakai oleh '+dup.name); return; }
   if(editing){
@@ -519,18 +597,22 @@ function importCsv(inp){
   const f = inp.files[0]; if(!f) return;
   const r = new FileReader();
   r.onload = () => {
-    let add = 0, skip = 0;
+    let add = 0, skip = 0, newCls = 0;
     String(r.result).replace(/^\uFEFF/,'').split(/\r?\n/).forEach((line, i) => {
       if(!line.trim()) return;
       const p = line.split(/[;,\t]/).map(x => x.trim().replace(/^"|"$/g,''));
-      const kelas = parseInt(p[2], 10);
-      if(i === 0 && isNaN(kelas)) return; /* baris judul */
-      if(p.length < 3 || !p[0] || !p[1] || !(kelas >= 1 && kelas <= 6)){ skip++; return; }
+      if(i === 0 && (/^(nis|nisn|no\.?)$/i.test(p[0]) || /^kelas$/i.test(p[2] || ''))) return; /* baris judul */
+      const kraw = cleanName(p[2] || '');
+      if(p.length < 3 || !p[0] || !p[1] || !kraw){ skip++; return; }
       if(state.students.some(s => s.nis === p[0])){ skip++; return; }
-      const ns = {code:genCode(), nis:p[0], name:p[1], kelas};
+      let cls = findClass(kraw);
+      if(!cls){ cls = {name:kraw, group:autoGroup(kraw)}; state.cfg.classes.push(cls); newCls++; }
+      const ns = {code:genCode(), nis:p[0], name:cleanName(p[1]), kelas:cls.name};
       state.students.push(ns); queue(stuOp(ns)); add++;
     });
-    persist(); vReg(); toast(add+' siswa diimpor'+(skip ? ', '+skip+' dilewati' : ''));
+    if(newCls) queueCfg();
+    persist(); vReg();
+    toast(add+' siswa diimpor'+(newCls ? ', '+newCls+' kelas baru' : '')+(skip ? ', '+skip+' dilewati' : ''));
   };
   r.readAsText(f);
 }
@@ -538,7 +620,7 @@ function showQR(c){
   const s = byCode(c); if(!s) return;
   openModal(`
     <div style="font-size:20px;font-weight:800">${esc(s.name)}</div>
-    <div class="muted">Kelas ${s.kelas}, NIS ${esc(s.nis)}</div>
+    <div class="muted">Kelas ${esc(s.kelas)}, NIS ${esc(s.nis)}</div>
     <div id="qrBox"></div>
     <div class="row"><button class="btn primary" onclick="dlQR('${s.code}')">Unduh gambar</button><button class="btn" onclick="closeModal()">Tutup</button></div>`);
   if(typeof QRCode === 'undefined'){ $('qrBox').outerHTML = '<div class="note">Pembuat QR belum termuat. Periksa koneksi internet.</div>'; return; }
@@ -559,12 +641,13 @@ function dlQR(c){
   x.font = '14px sans-serif'; x.fillStyle = '#555'; x.fillText('Absensi Dzuhur', 160, 380);
   const a = document.createElement('a');
   a.href = cv.toDataURL('image/png');
-  a.download = 'QR_Kelas'+s.kelas+'_'+s.name.replace(/[^A-Za-z0-9]+/g,'_')+'.png';
+  a.download = 'QR_Kelas'+s.kelas.replace(/[^A-Za-z0-9]+/g,'')+'_'+s.name.replace(/[^A-Za-z0-9]+/g,'_')+'.png';
   document.body.appendChild(a); a.click(); a.remove();
 }
 function printQR(){
   if(typeof QRCode === 'undefined'){ toast('Pembuat QR belum termuat'); return; }
-  const list = state.students.filter(s => !filt || s.kelas === filt).sort((a,b) => a.kelas - b.kelas || byName(a,b));
+  const fc = scopeClasses(filt);
+  const list = state.students.filter(s => fc.includes(s.kelas)).sort(byKelasNama);
   const pa = $('printArea'); pa.innerHTML = '';
   list.forEach(s => {
     const c = document.createElement('div'); c.className = 'pcard';
@@ -578,47 +661,58 @@ function printQR(){
 }
 
 /* ============ Rekap ============ */
-const rk = {kelas:0, mode:'day', date:dateStr(new Date()), month:dateStr(new Date()).slice(0,7)};
+const rk = {sel:'', mode:'day', date:dateStr(new Date()), month:dateStr(new Date()).slice(0,7)};
 
+function defaultSel(){
+  const ks = todayClasses();
+  if(ks.length === 1) return 'c:'+ks[0];
+  if(ks.length > 1){
+    const gs = new Set(ks.map(k => (findClass(k) || {}).group));
+    if(gs.size === 1) return 'g:'+[...gs][0];
+  }
+  return 'all';
+}
 function schedDates(kelas, month){
   const [y,m] = month.split('-').map(Number), n = new Date(y,m,0).getDate(), today = dateStr(new Date()), out = [];
   for(let d = 1; d <= n; d++){
     const dt = new Date(y, m-1, d), ds = dateStr(dt);
     if(ds > today) break;
-    if(+state.cfg.schedule[dt.getDay()] === kelas) out.push(ds);
+    if((state.cfg.schedule[dt.getDay()] || []).includes(kelas)) out.push(ds);
   }
   return out;
 }
 function vRekap(){
-  if(!rk.kelas) rk.kelas = todayClass() || KELAS.find(k => Object.values(state.cfg.schedule).some(v => +v === k)) || 6;
-  const sts = state.students.filter(s => s.kelas === rk.kelas).sort(byName);
-  let body = '';
-  if(rk.mode === 'day'){
-    const rec = new Map(state.att.filter(a => a.date === rk.date).map(a => [a.code, a]));
-    const hadir = sts.filter(s => rec.has(s.code)).length;
-    const dow = new Date(rk.date+'T00:00:00').getDay();
-    body = `<div class="summary"><b>${hadir}</b> hadir dari ${sts.length} siswa kelas ${rk.kelas}</div>
-      ${+state.cfg.schedule[dow] !== rk.kelas ? '<div class="note" style="background:var(--warn-bg);color:var(--warn)">Tanggal ini bukan hari jadwal kelas '+rk.kelas+'.</div>' : ''}
-      ${sts.length ? sts.map(s => { const a = rec.get(s.code); return `<button class="item" onclick="toggleManual('${s.code}')"><div class="who"><div class="nm">${esc(s.name)}</div><div class="sub">NIS ${esc(s.nis)}</div></div><span class="badge ${a ? 'y' : 'n'}">${a ? (a.time || 'Manual') : 'Belum'}</span></button>`; }).join('') : '<div class="empty">Belum ada siswa di kelas ini.</div>'}
-      <p class="muted" style="margin-top:8px;font-size:13px">Ketuk nama untuk menandai hadir manual atau membatalkannya.</p>`;
-  } else {
-    const dates = schedDates(rk.kelas, rk.month), total = dates.length;
-    const rows = sts.map(s => {
-      const cnt = state.att.filter(a => a.code === s.code && a.date.startsWith(rk.month)).length;
-      return {s, cnt, pct: total ? Math.min(100, Math.round(cnt/total*100)) : 0};
-    });
-    body = `<div class="summary"><b>${total}</b> hari jadwal kelas ${rk.kelas} sejauh ini bulan ini</div>
-      ${rows.length ? `<table><tr><th>Nama</th><th class="r">Hadir</th><th class="r">Persen</th></tr>
-      ${rows.map(r => `<tr><td>${esc(r.s.name)}</td><td class="r">${r.cnt}/${total}</td><td class="r">${r.pct}%</td></tr>`).join('')}</table>` : '<div class="empty">Belum ada siswa di kelas ini.</div>'}`;
-  }
+  if(!rk.sel || !scopeClasses(rk.sel).length) rk.sel = defaultSel();
+  const names = scopeClasses(rk.sel);
+  const day = rk.mode === 'day';
+  let body = '', nStud = 0;
+  const rec = new Map(state.att.filter(a => a.date === rk.date).map(a => [a.code, a]));
+  const dow = new Date(rk.date+'T00:00:00').getDay();
+  names.forEach(k => {
+    const sts = state.students.filter(s => s.kelas === k).sort(byName);
+    nStud += sts.length;
+    if(day){
+      const h = sts.filter(s => rec.has(s.code)).length;
+      body += `<h3>Kelas ${esc(k)} <span class="muted" style="font-weight:400">(${h} dari ${sts.length} hadir)</span></h3>`
+        + ((state.cfg.schedule[dow] || []).includes(k) ? '' : `<div class="note warn">Tanggal ini bukan hari jadwal kelas ${esc(k)}.</div>`)
+        + (sts.length ? sts.map(s => { const a = rec.get(s.code); return `<button class="item" onclick="toggleManual('${s.code}')"><div class="who"><div class="nm">${esc(s.name)}</div><div class="sub">NIS ${esc(s.nis)}</div></div><span class="badge ${a ? 'y' : 'n'}">${a ? (a.time || 'Manual') : 'Belum'}</span></button>`; }).join('') : '<div class="empty">Belum ada siswa di kelas ini.</div>');
+    } else {
+      const dates = schedDates(k, rk.month), total = dates.length;
+      body += `<h3>Kelas ${esc(k)} <span class="muted" style="font-weight:400">(${total} hari jadwal sejauh ini)</span></h3>`
+        + (sts.length ? `<table><tr><th>Nama</th><th class="r">Hadir</th><th class="r">Persen</th></tr>`
+          + sts.map(s => { const cnt = state.att.filter(a => a.code === s.code && a.date.startsWith(rk.month)).length; return `<tr><td>${esc(s.name)}</td><td class="r">${cnt}/${total}</td><td class="r">${total ? Math.min(100, Math.round(cnt/total*100)) : 0}%</td></tr>`; }).join('')
+          + '</table>' : '<div class="empty">Belum ada siswa di kelas ini.</div>');
+    }
+  });
   $('view').innerHTML = `
-    <div class="seg"><button class="${rk.mode==='day'?'on':''}" onclick="rk.mode='day';vRekap()">Harian</button><button class="${rk.mode==='month'?'on':''}" onclick="rk.mode='month';vRekap()">Bulanan</button></div>
+    <div class="seg"><button class="${day ? 'on' : ''}" onclick="rk.mode='day';vRekap()">Harian</button><button class="${!day ? 'on' : ''}" onclick="rk.mode='month';vRekap()">Bulanan</button></div>
     <div class="row" style="margin-bottom:12px">
-      <select onchange="rk.kelas=+this.value;vRekap()">${kelasOpts(rk.kelas)}</select>
-      ${rk.mode === 'day' ? `<input type="date" value="${rk.date}" onchange="if(this.value){rk.date=this.value;vRekap()}">` : `<input type="month" value="${rk.month}" onchange="if(this.value){rk.month=this.value;vRekap()}">`}
+      <select onchange="rk.sel=this.value;vRekap()">${scopeOptions(rk.sel)}</select>
+      ${day ? `<input type="date" value="${rk.date}" onchange="if(this.value){rk.date=this.value;vRekap()}">` : `<input type="month" value="${rk.month}" onchange="if(this.value){rk.month=this.value;vRekap()}">`}
     </div>
+    <div class="summary"><b>${names.length}</b> kelas, ${nStud} siswa. Ekspor Excel membuat satu sheet untuk setiap kelas.</div>
     ${body}
-    <button class="btn block" style="margin-top:12px" onclick="exportRekap()" ${sts.length ? '' : 'disabled'}>Ekspor ke Excel (.xlsx)</button>`;
+    <button class="btn block" style="margin-top:12px" onclick="exportRekap()" ${nStud ? '' : 'disabled'}>Ekspor ke Excel (.xlsx)</button>`;
 }
 function toggleManual(c){
   const s = byCode(c); if(!s) return;
@@ -634,30 +728,35 @@ function toggleManual(c){
   }
   persist(); vRekap();
 }
-async function exportRekap(){
-  if(typeof ExcelJS === 'undefined'){ toast('Pustaka Excel belum termuat, mengunduh CSV'); return exportCsv(); }
-  const sts = state.students.filter(s => s.kelas === rk.kelas).sort(byName);
+
+/* ---- Ekspor Excel: satu sheet per kelas ---- */
+function scopeLabel(){
+  const l = rk.sel === 'all' ? 'SemuaKelas' : rk.sel.startsWith('g:') ? 'Kelompok'+rk.sel.slice(2) : 'Kelas'+rk.sel.slice(2);
+  return l.replace(/[^A-Za-z0-9]+/g,'_');
+}
+function addClassSheet(wb, k, used){
   const GREEN = 'FF0F6B55', LINE = {style:'thin', color:{argb:'FFB8C7BF'}};
   const BORDER = {top:LINE, left:LINE, bottom:LINE, right:LINE};
-  const wb = new ExcelJS.Workbook();
   const day = rk.mode === 'day';
-  const ws = wb.addWorksheet(day ? 'Harian' : 'Bulanan', {pageSetup:{orientation: day ? 'portrait' : 'landscape', paperSize:9, fitToPage:true, fitToWidth:1, fitToHeight:0}});
-  const dates = day ? [] : schedDates(rk.kelas, rk.month);
+  const sts = state.students.filter(s => s.kelas === k).sort(byName);
+  if(!sts.length) return false;
+  const base = (String(k).replace(/[\[\]:*?\/\\]/g,'-').slice(0,28) || 'Kelas');
+  let nm = base, n = 2;
+  while(used.has(nm.toLowerCase())) nm = base+'_'+(n++);
+  used.add(nm.toLowerCase());
+  const ws = wb.addWorksheet(nm, {pageSetup:{orientation: day ? 'portrait' : 'landscape', paperSize:9, fitToPage:true, fitToWidth:1, fitToHeight:0}});
+  const dates = day ? [] : schedDates(k, rk.month);
   const ncols = day ? 5 : 4 + dates.length + 3;
-  const widths = day ? [6,32,16,12,10] : [6,32,16, ...dates.map(() => 6), 8, 11, 10];
-  ws.columns = widths.map(w => ({width:w}));
-
+  ws.columns = (day ? [6,32,16,12,10] : [6,32,16,...dates.map(() => 6), 8, 11, 10]).map(w => ({width:w}));
   const head = (r, text, size) => {
     ws.mergeCells(r, 1, r, ncols);
     const c = ws.getCell(r, 1);
     c.value = text; c.font = {bold:true, size}; c.alignment = {horizontal:'center', vertical:'middle'};
   };
   head(1, 'Absensi Sholat Dzuhur', 16);
-  head(2, day ? 'Kelas '+rk.kelas+', '+prettyDate(rk.date) : 'Kelas '+rk.kelas+', bulan '+rk.month.slice(5)+'/'+rk.month.slice(0,4), 12);
+  head(2, day ? 'Kelas '+k+', '+prettyDate(rk.date) : 'Kelas '+k+', bulan '+rk.month.slice(5)+'/'+rk.month.slice(0,4), 12);
   ws.getRow(1).height = 26;
-
-  const HR = 4;
-  const hrow = ws.getRow(HR);
+  const HR = 4, hrow = ws.getRow(HR);
   hrow.values = day ? ['No','Nama','NIS','Status','Jam'] : ['No','Nama','NIS', ...dates.map(d => d.slice(8)+'/'+d.slice(5,7)), 'Hadir','Total hari','Persen'];
   hrow.height = 24;
   hrow.eachCell(c => {
@@ -666,9 +765,8 @@ async function exportRekap(){
     c.alignment = {horizontal:'center', vertical:'middle', wrapText:true};
     c.border = BORDER;
   });
-
-  let r = HR + 1, hadirDay = 0;
   const rec = new Map(state.att.filter(a => a.date === rk.date).map(a => [a.code, a]));
+  let r = HR + 1, hadirDay = 0;
   sts.forEach((s, i) => {
     const row = ws.getRow(r++);
     if(day){
@@ -680,24 +778,23 @@ async function exportRekap(){
       row.values = [i+1, s.name, String(s.nis), ...dates.map(d => mine.has(d) ? 'H' : '-'), cnt, dates.length, dates.length ? Math.min(1, cnt/dates.length) : 0];
     }
     row.height = 20;
-    row.eachCell({includeEmpty:true}, (c, n) => {
-      if(n > ncols) return;
+    row.eachCell({includeEmpty:true}, (c, col) => {
+      if(col > ncols) return;
       c.border = BORDER;
-      c.alignment = {horizontal: n === 2 ? 'left' : 'center', vertical:'middle'};
-      if(day && n === 4){
+      c.alignment = {horizontal: col === 2 ? 'left' : 'center', vertical:'middle'};
+      if(day && col === 4){
         const ok = c.value === 'Hadir';
         c.font = {bold:true, color:{argb: ok ? 'FF0F6B55' : 'FF8A8A8A'}};
         c.fill = {type:'pattern', pattern:'solid', fgColor:{argb: ok ? 'FFDFF1E8' : 'FFF1F1F1'}};
       }
-      if(!day && n > 3 && n <= 3 + dates.length){
+      if(!day && col > 3 && col <= 3 + dates.length){
         const ok = c.value === 'H';
         c.font = {bold:ok, color:{argb: ok ? 'FF0F6B55' : 'FF9A9A9A'}};
         if(ok) c.fill = {type:'pattern', pattern:'solid', fgColor:{argb:'FFDFF1E8'}};
       }
-      if(!day && n === ncols) c.numFmt = '0%';
+      if(!day && col === ncols) c.numFmt = '0%';
     });
   });
-
   if(day){
     r++;
     ws.mergeCells(r, 1, r, ncols);
@@ -706,49 +803,166 @@ async function exportRekap(){
     c.font = {bold:true}; c.alignment = {horizontal:'left'};
   }
   ws.views = [{state:'frozen', xSplit:2, ySplit:HR}];
-
-  const name = day ? 'Absen_Dzuhur_Kelas'+rk.kelas+'_'+rk.date+'.xlsx' : 'Rekap_Dzuhur_Kelas'+rk.kelas+'_'+rk.month+'.xlsx';
+  return true;
+}
+async function exportRekap(){
+  if(typeof ExcelJS === 'undefined'){ toast('Pustaka Excel belum termuat, mengunduh CSV'); return exportCsv(); }
+  const wb = new ExcelJS.Workbook(), used = new Set();
+  let made = 0;
+  scopeClasses(rk.sel).forEach(k => { if(addClassSheet(wb, k, used)) made++; });
+  if(!made){ toast('Belum ada siswa untuk diekspor'); return; }
+  const name = (rk.mode === 'day' ? 'Absen_Dzuhur_'+scopeLabel()+'_'+rk.date : 'Rekap_Dzuhur_'+scopeLabel()+'_'+rk.month)+'.xlsx';
   try{
     const buf = await wb.xlsx.writeBuffer();
     download(name, buf, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   } catch(e){ toast('Gagal membuat file Excel, mengunduh CSV'); exportCsv(); }
 }
 function exportCsv(){
-  const sts = state.students.filter(s => s.kelas === rk.kelas).sort(byName);
-  let rows, name;
-  if(rk.mode === 'day'){
-    const rec = new Map(state.att.filter(a => a.date === rk.date).map(a => [a.code, a]));
-    rows = [['No','Nama','NIS','Kelas','Status','Jam']];
-    sts.forEach((s,i) => { const a = rec.get(s.code); rows.push([i+1, s.name, s.nis, s.kelas, a ? 'Hadir' : 'Belum', a ? (a.time || 'Manual') : '']); });
-    name = 'Absen_Dzuhur_Kelas'+rk.kelas+'_'+rk.date+'.csv';
-  } else {
-    const dates = schedDates(rk.kelas, rk.month);
-    rows = [['No','Nama','NIS','Kelas', ...dates.map(d => d.slice(8)+'/'+d.slice(5,7)), 'Hadir','Total hari','Persen']];
-    sts.forEach((s,i) => {
-      const mine = new Set(state.att.filter(a => a.code === s.code).map(a => a.date));
-      const cnt = state.att.filter(a => a.code === s.code && a.date.startsWith(rk.month)).length;
-      rows.push([i+1, s.name, s.nis, s.kelas, ...dates.map(d => mine.has(d) ? 'H' : '-'), cnt, dates.length, (dates.length ? Math.min(100, Math.round(cnt/dates.length*100)) : 0)+'%']);
+  const rows = [], day = rk.mode === 'day';
+  const rec = new Map(state.att.filter(a => a.date === rk.date).map(a => [a.code, a]));
+  rows.push(day ? ['No','Kelas','Nama','NIS','Status','Jam'] : ['No','Kelas','Nama','NIS','Hadir','Total hari','Persen']);
+  let i = 1;
+  scopeClasses(rk.sel).forEach(k => {
+    const total = day ? 0 : schedDates(k, rk.month).length;
+    state.students.filter(s => s.kelas === k).sort(byName).forEach(s => {
+      if(day){ const a = rec.get(s.code); rows.push([i++, k, s.name, s.nis, a ? 'Hadir' : 'Belum', a ? (a.time || 'Manual') : '']); }
+      else { const cnt = state.att.filter(a => a.code === s.code && a.date.startsWith(rk.month)).length; rows.push([i++, k, s.name, s.nis, cnt, total, (total ? Math.min(100, Math.round(cnt/total*100)) : 0)+'%']); }
     });
-    name = 'Rekap_Dzuhur_Kelas'+rk.kelas+'_'+rk.month+'.csv';
+  });
+  download((day ? 'Absen_Dzuhur_'+scopeLabel()+'_'+rk.date : 'Rekap_Dzuhur_'+scopeLabel()+'_'+rk.month)+'.csv', toCsv(rows), 'text/csv;charset=utf-8');
+}
+
+/* ============ Pengaturan: kelas ============ */
+function classCard(){
+  const cl = state.cfg.classes;
+  const cnt = k => state.students.filter(s => s.kelas === k).length;
+  return `<div class="card"><h3>Daftar kelas</h3>
+    <p class="muted">Atur nama kelas sesuai sekolahmu, misalnya 6A, VII A, atau X IPA 1. Kelas dengan kelompok yang sama bisa direkap bersama.</p>
+    ${cl.length ? cl.map((c,i) => `<div class="item"><div class="who"><div class="nm">${esc(c.name)}</div><div class="sub">Kelompok ${esc(c.group)}, ${cnt(c.name)} siswa</div></div><div class="acts"><button class="btn sm" onclick="editClass(${i})">Ubah</button><button class="btn sm danger" onclick="delClass(${i})">Hapus</button></div></div>`).join('') : '<div class="empty">Belum ada kelas.</div>'}
+    <div class="row" style="margin:12px 0 8px"><input id="nkName" placeholder="Nama kelas, mis. 6A" autocomplete="off"><input id="nkGroup" placeholder="Kelompok (opsional)" autocomplete="off"></div>
+    <button class="btn block" onclick="addClass()">Tambah kelas</button>
+    <details class="card"><summary>Tambah banyak kelas sekaligus</summary>
+      <label style="margin-top:10px">Tingkat<input id="bkT" placeholder="mis. 1, 7, atau X" autocomplete="off"></label>
+      <label>Rombel (huruf atau nomor)<input id="bkR" placeholder="mis. A,B,C atau A-F atau 1-4" autocomplete="off"></label>
+      <button class="btn block" style="margin:0" onclick="addBulk()">Buat kelas</button>
+      <p class="muted" style="margin:8px 0 0">Contoh: tingkat 1 dan rombel A-C membuat 1A, 1B, 1C.</p>
+    </details>
+    <div class="muted" style="margin:4px 0 8px">Tambah cepat per jenjang:</div>
+    <div class="chips"><button class="chip" onclick="preset('SD')">SD (1-6)</button><button class="chip" onclick="preset('SMP')">SMP (7-9)</button><button class="chip" onclick="preset('SMA')">SMA (10-12)</button></div>
+  </div>`;
+}
+function addClassObj(name, group){
+  name = cleanName(name); if(!name) return false;
+  if(findClass(name)) return false;
+  state.cfg.classes.push({name, group:cleanName(group || '') || autoGroup(name)});
+  return true;
+}
+function addClass(){
+  const name = cleanName($('nkName').value);
+  if(!name){ toast('Isi nama kelas'); return; }
+  if(!addClassObj(name, $('nkGroup').value)){ toast('Kelas '+name+' sudah ada'); return; }
+  cfgChanged(); vSet(); toast('Kelas '+name+' ditambahkan');
+}
+function parseRombel(r){
+  const out = [];
+  String(r).split(/[,;\s]+/).filter(Boolean).forEach(t => {
+    let m = t.match(/^([A-Za-z])\s*-\s*([A-Za-z])$/);
+    if(m){ let a = m[1].toUpperCase().charCodeAt(0), b = m[2].toUpperCase().charCodeAt(0); if(a > b) [a,b] = [b,a]; for(let c = a; c <= b; c++) out.push(String.fromCharCode(c)); return; }
+    m = t.match(/^(\d+)\s*-\s*(\d+)$/);
+    if(m){ let a = +m[1], b = +m[2]; if(a > b) [a,b] = [b,a]; if(b - a > 60) b = a + 60; for(let c = a; c <= b; c++) out.push(String(c)); return; }
+    out.push(t.toUpperCase());
+  });
+  return out;
+}
+function addBulk(){
+  const T = cleanName($('bkT').value), R = $('bkR').value;
+  if(!T){ toast('Isi tingkat kelas'); return; }
+  const parts = parseRombel(R), sep = /^\d+$/.test(T) ? '' : ' ';
+  const names = parts.length ? parts.map(p => T+sep+p) : [T];
+  let n = 0;
+  names.forEach(nm => { if(addClassObj(nm, T)) n++; });
+  if(!n){ toast('Semua kelas itu sudah ada'); return; }
+  cfgChanged(); vSet(); toast(n+' kelas ditambahkan');
+}
+function preset(kind){
+  const r = {SD:[1,6], SMP:[7,9], SMA:[10,12]}[kind];
+  let n = 0;
+  for(let i = r[0]; i <= r[1]; i++) if(addClassObj(String(i), String(i))) n++;
+  if(!n){ toast('Kelas jenjang itu sudah ada'); return; }
+  cfgChanged(); vSet(); toast(n+' kelas ditambahkan');
+}
+function editClass(i){
+  const c = state.cfg.classes[i]; if(!c) return;
+  openModal(`<div style="font-size:18px;font-weight:800;margin-bottom:10px">Ubah kelas</div>
+    <label>Nama kelas<input id="ecName" value="${esc(c.name)}" autocomplete="off"></label>
+    <label>Kelompok<input id="ecGroup" value="${esc(c.group)}" autocomplete="off"></label>
+    <div class="row"><button class="btn primary" onclick="saveClass(${i})">Simpan</button><button class="btn" onclick="closeModal()">Batal</button></div>`);
+}
+function saveClass(i){
+  const c = state.cfg.classes[i]; if(!c) return;
+  const name = cleanName($('ecName').value), group = cleanName($('ecGroup').value) || autoGroup(name);
+  if(!name){ toast('Nama kelas wajib diisi'); return; }
+  if(state.cfg.classes.some((x,j) => j !== i && keyOf(x.name) === keyOf(name))){ toast('Nama kelas sudah dipakai'); return; }
+  const old = c.name;
+  if(name !== old){
+    state.students.forEach(s => { if(s.kelas === old){ s.kelas = name; queue(stuOp(s)); } });
+    Object.keys(state.cfg.schedule).forEach(d => { state.cfg.schedule[d] = state.cfg.schedule[d].map(n => n === old ? name : n); });
+    if(lastKelas === old) lastKelas = name;
+    if(filt === 'c:'+old) filt = 'c:'+name;
+    if(rk.sel === 'c:'+old) rk.sel = 'c:'+name;
   }
-  download(name, toCsv(rows), 'text/csv;charset=utf-8');
+  c.name = name; c.group = group;
+  cfgChanged(); closeModal(); vSet(); toast('Kelas diperbarui');
+}
+function delClass(i){
+  const c = state.cfg.classes[i]; if(!c) return;
+  const n = state.students.filter(s => s.kelas === c.name).length;
+  if(n){ toast('Kelas '+c.name+' masih berisi '+n+' siswa. Pindahkan atau hapus siswanya dulu.'); return; }
+  if(!confirm('Hapus kelas '+c.name+'?')) return;
+  state.cfg.classes.splice(i,1);
+  Object.keys(state.cfg.schedule).forEach(d => { state.cfg.schedule[d] = state.cfg.schedule[d].filter(x => x !== c.name); });
+  cfgChanged(); vSet(); toast('Kelas dihapus');
+}
+
+/* ============ Pengaturan: jadwal ============ */
+const daySum = d => { const s = state.cfg.schedule[d] || []; return s.length ? 'Kelas '+s.join(', ') : 'Tidak ada absen'; };
+function dayBody(d){
+  const sel = state.cfg.schedule[d] || [];
+  const gs = groupsOf().filter(x => x.names.length > 1);
+  return (gs.length ? `<div class="muted" style="margin:6px 0 4px;font-size:13px">Pilih satu kelompok sekaligus</div><div class="chips">${gs.map((x,gi) => `<button class="chip ${x.names.every(n => sel.includes(n)) ? 'on' : ''}" onclick="toggleGroup(${d},${gi})">Semua ${esc(x.g)}</button>`).join('')}</div>` : '')
+    + `<div class="muted" style="margin:10px 0 4px;font-size:13px">Atau pilih kelas satu per satu</div>
+    <div class="chips">${state.cfg.classes.map((c,i) => `<button class="chip ${sel.includes(c.name) ? 'on' : ''}" onclick="toggleSched(${d},${i})">${esc(c.name)}</button>`).join('') || '<span class="muted">Tambahkan kelas dulu.</span>'}</div>`;
+}
+function refreshDay(d){ $('db'+d).innerHTML = dayBody(d); $('ds'+d).textContent = daySum(d); }
+function setDay(d, arr){ state.cfg.schedule[d] = classNames().filter(n => arr.includes(n)); cfgChanged(); refreshDay(d); }
+function toggleSched(d, i){
+  const n = state.cfg.classes[i].name, cur = state.cfg.schedule[d] || [];
+  setDay(d, cur.includes(n) ? cur.filter(x => x !== n) : cur.concat(n));
+}
+function toggleGroup(d, gi){
+  const g = groupsOf().filter(x => x.names.length > 1)[gi]; if(!g) return;
+  const cur = state.cfg.schedule[d] || [];
+  setDay(d, g.names.every(n => cur.includes(n)) ? cur.filter(x => !g.names.includes(x)) : cur.concat(g.names));
+}
+function schedCard(){
+  return `<div class="card"><h3>Jadwal kelas</h3><p class="muted">Satu hari boleh diisi beberapa kelas sekaligus. Ketuk nama hari untuk mengatur.</p>
+    ${[1,2,3,4,5,6,0].map(d => `<details class="day"><summary><b>${DAYS[d]}</b> <span class="muted" id="ds${d}">${esc(daySum(d))}</span></summary><div id="db${d}">${dayBody(d)}</div></details>`).join('')}</div>`;
 }
 
 /* ============ Pengaturan ============ */
 function vSet(){
   const c = state.cfg;
-  const dayRows = [1,2,3,4,5,6,0].map(d => `
-    <label>${DAYS[d]}<select onchange="setSched(${d},this.value)"><option value="0">Tidak ada absen</option>${kelasOpts(+c.schedule[d])}</select></label>`).join('');
   $('view').innerHTML = `
     ${syncCard()}
-    <div class="card"><h3>Jadwal kelas</h3>${dayRows}</div>
+    ${classCard()}
+    ${schedCard()}
     <div class="card"><h3>Jam absen Dzuhur</h3>
       <label style="font-weight:400"><input type="checkbox" ${c.limit ? 'checked' : ''} onchange="state.cfg.limit=this.checked;cfgChanged()">Batasi absen hanya pada jam ini</label>
       <div class="row"><label>Mulai<input type="time" value="${c.start}" onchange="state.cfg.start=this.value||'12:00';cfgChanged()"></label>
       <label>Selesai<input type="time" value="${c.end}" onchange="state.cfg.end=this.value||'14:00';cfgChanged()"></label></div>
     </div>
     <div class="card"><h3>Cadangan data</h3>
-      <p class="muted">Data tersimpan di browser HP ini saja. Unduh cadangan secara berkala.</p>
+      <p class="muted">Data tersimpan di browser perangkat ini. Unduh cadangan secara berkala.</p>
       <button class="btn block" onclick="backup()">Unduh cadangan (JSON)</button>
       <label style="margin:0">Pulihkan dari cadangan<input type="file" accept=".json,application/json" onchange="restore(this)"></label>
     </div>
@@ -757,8 +971,7 @@ function vSet(){
       <button class="btn block danger" style="margin:0" onclick="clearAll()">Hapus semua data (siswa dan absen)</button>
     </div>`;
 }
-function setSched(d, v){ state.cfg.schedule[d] = +v; cfgChanged(); toast('Jadwal '+DAYS[d]+' disimpan'); }
-function backup(){ download('cadangan-absensi-dzuhur-'+dateStr(new Date())+'.json', JSON.stringify({v:1, students:state.students, att:state.att, cfg:state.cfg}), 'application/json'); }
+function backup(){ download('cadangan-absensi-dzuhur-'+dateStr(new Date())+'.json', JSON.stringify({v:2, students:state.students, att:state.att, cfg:state.cfg}), 'application/json'); }
 function restore(inp){
   const f = inp.files[0]; if(!f) return;
   const r = new FileReader();
@@ -767,8 +980,9 @@ function restore(inp){
       const d = JSON.parse(r.result);
       if(!Array.isArray(d.students) || !Array.isArray(d.att)) throw 0;
       if(!confirm('Data saat ini akan diganti dengan isi cadangan ('+d.students.length+' siswa). Lanjutkan?')) return;
-      state.students = d.students; state.att = d.att;
-      if(d.cfg) state.cfg = Object.assign({}, defaultCfg, d.cfg, {schedule:Object.assign({}, defaultCfg.schedule, d.cfg.schedule || {})});
+      state.students = d.students.map(s => Object.assign({}, s, {kelas:String(s.kelas)}));
+      state.att = d.att;
+      state.cfg = normCfg(d.cfg || state.cfg, state.students);
       persist();
       if(enabled()){ sync.outbox = [{t:'clearAll', id:oid()}, ...fullOps()]; save('outbox', sync.outbox); setStatus(); scheduleSync(); }
       vSet(); toast('Data dipulihkan');
