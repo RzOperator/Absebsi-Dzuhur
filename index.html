@@ -444,8 +444,8 @@ function vScan(){
     <div class="cam"><div id="ph" class="ph">Kamera belum aktif</div><div id="reader"></div></div>
     <button class="btn primary block" id="camBtn" onclick="toggleCam()">Mulai scan</button>
     <div id="result"></div>
-    <details class="card"><summary>Absen manual dengan NIS</summary>
-      <div class="row"><input id="man" inputmode="numeric" placeholder="Ketik NIS siswa" onkeydown="if(event.key==='Enter')manual()"><button class="btn" style="flex:0 0 auto" onclick="manual()">Absen</button></div>
+    <details class="card"><summary>Absen manual dengan ID</summary>
+      <div class="row"><input id="man" inputmode="numeric" placeholder="Ketik ID siswa" onkeydown="if(event.key==='Enter')manual()"><button class="btn" style="flex:0 0 auto" onclick="manual()">Absen</button></div>
     </details>
     <h3>Sudah absen hari ini</h3>
     <div id="todayList"></div>`;
@@ -502,7 +502,7 @@ function manual(){
 }
 
 function attempt(s, fromQr){
-  if(!s) return showResult('err','Tidak dikenal', fromQr ? 'QR ini belum terdaftar di aplikasi.' : 'NIS tidak ditemukan.');
+  if(!s) return showResult('err','Tidak dikenal', fromQr ? 'QR ini belum terdaftar di aplikasi.' : 'ID tidak ditemukan.');
   const now = new Date(), ks = todayClasses();
   if(!ks.length) return showResult('err', s.name, 'Tidak ada jadwal absen hari ini.');
   if(!ks.includes(s.kelas)) return showResult('err', s.name, 'Bukan jadwal kelasmu hari ini. Giliran hari ini: kelas '+ks.join(', ')+'.');
@@ -552,21 +552,21 @@ function vReg(){
   $('view').innerHTML = `
     <form class="card" onsubmit="saveStudent(event)">
       <h3>${ed ? 'Edit siswa' : 'Registrasi siswa'}</h3>
-      <label>NIS<input id="fNis" required inputmode="numeric" autocomplete="off" value="${ed ? esc(ed.nis) : ''}"></label>
+      <label>ID siswa<input id="fNis" required inputmode="numeric" autocomplete="off" value="${ed ? esc(ed.nis) : ''}"></label>
       <label>Nama lengkap<input id="fNama" required autocomplete="off" value="${ed ? esc(ed.name) : ''}"></label>
       <label>Kelas<select id="fKelas">${kelasOpts(kSel)}</select></label>
       <div class="row"><button class="btn primary" type="submit">${ed ? 'Simpan perubahan' : 'Daftarkan dan buat QR'}</button>${ed ? '<button class="btn" type="button" onclick="cancelEdit()">Batal</button>' : ''}</div>
     </form>
     <div class="card">
       <h3>Impor dari file CSV</h3>
-      <p class="muted">Kolom berurutan: nis, nama, kelas. Nama kelas harus sama dengan di aplikasi (mis. 6A). Kelas yang belum ada dibuat otomatis.</p>
+      <p class="muted">Kolom berurutan: id, nama, kelas. Nama kelas harus sama dengan di aplikasi (mis. 6A). Kelas yang belum ada dibuat otomatis.</p>
       <input type="file" id="csvFile" accept=".csv,.txt,text/csv" onchange="importCsv(this)">
     </div>
     <div class="row between"><h3>Daftar siswa (${list.length})</h3>
       <select style="width:auto;max-width:60%" onchange="filt=this.value;vReg()">${scopeOptions(filt)}</select></div>
     <button class="btn block" onclick="printQR()" ${list.length ? '' : 'disabled'}>Cetak QR siswa yang tampil</button>
     ${list.length ? list.map(s => `
-      <div class="item"><div class="who"><div class="nm">${esc(s.name)}</div><div class="sub">Kelas ${esc(s.kelas)}, NIS ${esc(s.nis)}</div></div>
+      <div class="item"><div class="who"><div class="nm">${esc(s.name)}</div><div class="sub">Kelas ${esc(s.kelas)}, ID ${esc(s.nis)}</div></div>
       <div class="acts"><button class="btn sm" onclick="showQR('${s.code}')">QR</button><button class="btn sm" onclick="startEdit('${s.code}')">Edit</button><button class="btn sm danger" onclick="delStudent('${s.code}')">Hapus</button></div></div>`).join('')
       : '<div class="empty">Belum ada siswa. Daftarkan lewat formulir di atas atau impor dari CSV.</div>'}`;
 }
@@ -575,7 +575,7 @@ function saveStudent(e){
   const nis = $('fNis').value.trim(), name = cleanName($('fNama').value), kelas = $('fKelas').value;
   if(!nis || !name || !kelas) return;
   const dup = state.students.find(s => s.nis === nis && s.code !== editing);
-  if(dup){ toast('NIS sudah dipakai oleh '+dup.name); return; }
+  if(dup){ toast('ID sudah dipakai oleh '+dup.name); return; }
   if(editing){
     const s = byCode(editing); s.nis = nis; s.name = name; s.kelas = kelas;
     editing = null; persist(); queue(stuOp(s)); vReg(); toast('Perubahan disimpan');
@@ -601,7 +601,7 @@ function importCsv(inp){
     String(r.result).replace(/^\uFEFF/,'').split(/\r?\n/).forEach((line, i) => {
       if(!line.trim()) return;
       const p = line.split(/[;,\t]/).map(x => x.trim().replace(/^"|"$/g,''));
-      if(i === 0 && (/^(nis|nisn|no\.?)$/i.test(p[0]) || /^kelas$/i.test(p[2] || ''))) return; /* baris judul */
+      if(i === 0 && (/^(id|nis|nisn|no\.?)$/i.test(p[0]) || /^kelas$/i.test(p[2] || ''))) return; /* baris judul */
       const kraw = cleanName(p[2] || '');
       if(p.length < 3 || !p[0] || !p[1] || !kraw){ skip++; return; }
       if(state.students.some(s => s.nis === p[0])){ skip++; return; }
@@ -620,7 +620,7 @@ function showQR(c){
   const s = byCode(c); if(!s) return;
   openModal(`
     <div style="font-size:20px;font-weight:800">${esc(s.name)}</div>
-    <div class="muted">Kelas ${esc(s.kelas)}, NIS ${esc(s.nis)}</div>
+    <div class="muted">Kelas ${esc(s.kelas)}, ID ${esc(s.nis)}</div>
     <div id="qrBox"></div>
     <div class="row"><button class="btn primary" onclick="dlQR('${s.code}')">Unduh gambar</button><button class="btn" onclick="closeModal()">Tutup</button></div>`);
   if(typeof QRCode === 'undefined'){ $('qrBox').outerHTML = '<div class="note">Pembuat QR belum termuat. Periksa koneksi internet.</div>'; return; }
@@ -637,7 +637,7 @@ function dlQR(c){
   x.drawImage(q, 30, 20, 260, 260);
   x.fillStyle = '#000'; x.textAlign = 'center';
   x.font = 'bold 22px sans-serif'; x.fillText(s.name, 160, 315, 300);
-  x.font = '18px sans-serif'; x.fillText('Kelas '+s.kelas+', NIS '+s.nis, 160, 345, 300);
+  x.font = '18px sans-serif'; x.fillText('Kelas '+s.kelas+', ID '+s.nis, 160, 345, 300);
   x.font = '14px sans-serif'; x.fillStyle = '#555'; x.fillText('Absensi Dzuhur', 160, 380);
   const a = document.createElement('a');
   a.href = cv.toDataURL('image/png');
@@ -654,24 +654,15 @@ function printQR(){
     const q = document.createElement('div'); c.appendChild(q);
     new QRCode(q, {text:'SHL:'+s.code, width:130, height:130, correctLevel:QRCode.CorrectLevel.M});
     const n = document.createElement('div'); n.className = 'pn'; n.textContent = s.name;
-    const m = document.createElement('div'); m.className = 'pm'; m.textContent = 'Kelas '+s.kelas+', NIS '+s.nis;
+    const m = document.createElement('div'); m.className = 'pm'; m.textContent = 'Kelas '+s.kelas+', ID '+s.nis;
     c.append(n, m); pa.appendChild(c);
   });
   setTimeout(() => window.print(), 400);
 }
 
 /* ============ Rekap ============ */
-const rk = {sel:'', mode:'day', date:dateStr(new Date()), month:dateStr(new Date()).slice(0,7)};
+const rk = {sel:'all', tab:'', mode:'day', date:dateStr(new Date()), month:dateStr(new Date()).slice(0,7)};
 
-function defaultSel(){
-  const ks = todayClasses();
-  if(ks.length === 1) return 'c:'+ks[0];
-  if(ks.length > 1){
-    const gs = new Set(ks.map(k => (findClass(k) || {}).group));
-    if(gs.size === 1) return 'g:'+[...gs][0];
-  }
-  return 'all';
-}
 function schedDates(kelas, month){
   const [y,m] = month.split('-').map(Number), n = new Date(y,m,0).getDate(), today = dateStr(new Date()), out = [];
   for(let d = 1; d <= n; d++){
@@ -681,39 +672,59 @@ function schedDates(kelas, month){
   }
   return out;
 }
+/* Kelas yang ikut dalam rekap: hanya yang terjadwal pada tanggal itu (atau sudah punya catatan absen di tanggal itu) */
+function classesOnDate(ds){
+  const sched = state.cfg.schedule[new Date(ds+'T00:00:00').getDay()] || [];
+  const withAtt = new Set(state.att.filter(a => a.date === ds).map(a => (byCode(a.code) || {}).kelas));
+  return classNames().filter(k => sched.includes(k) || withAtt.has(k));
+}
+function classesInMonth(month){
+  const withAtt = new Set(state.att.filter(a => a.date.startsWith(month)).map(a => (byCode(a.code) || {}).kelas));
+  return classNames().filter(k => schedDates(k, month).length || withAtt.has(k));
+}
+function rekapClasses(){
+  const avail = rk.mode === 'day' ? classesOnDate(rk.date) : classesInMonth(rk.month);
+  return scopeClasses(rk.sel).filter(k => avail.includes(k));
+}
 function vRekap(){
-  if(!rk.sel || !scopeClasses(rk.sel).length) rk.sel = defaultSel();
-  const names = scopeClasses(rk.sel);
+  if(!rk.sel || !scopeClasses(rk.sel).length) rk.sel = 'all';
   const day = rk.mode === 'day';
-  let body = '', nStud = 0;
-  const rec = new Map(state.att.filter(a => a.date === rk.date).map(a => [a.code, a]));
-  const dow = new Date(rk.date+'T00:00:00').getDay();
-  names.forEach(k => {
+  const names = rekapClasses();
+  if(!names.includes(rk.tab)) rk.tab = names[0] || '';
+  const k = rk.tab;
+  let body = '';
+  if(!names.length){
+    body = `<div class="empty">${day ? 'Tidak ada kelas yang terjadwal pada tanggal ini.' : 'Belum ada kelas yang punya jadwal pada bulan ini.'}</div>`;
+  } else {
     const sts = state.students.filter(s => s.kelas === k).sort(byName);
-    nStud += sts.length;
     if(day){
+      const rec = new Map(state.att.filter(a => a.date === rk.date).map(a => [a.code, a]));
       const h = sts.filter(s => rec.has(s.code)).length;
-      body += `<h3>Kelas ${esc(k)} <span class="muted" style="font-weight:400">(${h} dari ${sts.length} hadir)</span></h3>`
-        + ((state.cfg.schedule[dow] || []).includes(k) ? '' : `<div class="note warn">Tanggal ini bukan hari jadwal kelas ${esc(k)}.</div>`)
-        + (sts.length ? sts.map(s => { const a = rec.get(s.code); return `<button class="item" onclick="toggleManual('${s.code}')"><div class="who"><div class="nm">${esc(s.name)}</div><div class="sub">NIS ${esc(s.nis)}</div></div><span class="badge ${a ? 'y' : 'n'}">${a ? (a.time || 'Manual') : 'Belum'}</span></button>`; }).join('') : '<div class="empty">Belum ada siswa di kelas ini.</div>');
+      body = `<div class="summary"><b>${h}</b> dari ${sts.length} siswa kelas ${esc(k)} hadir</div>`
+        + (sts.length ? sts.map(s => { const a = rec.get(s.code); return `<button class="item" onclick="toggleManual('${s.code}')"><div class="who"><div class="nm">${esc(s.name)}</div><div class="sub">ID ${esc(s.nis)}</div></div><span class="badge ${a ? 'y' : 'n'}">${a ? (a.time || 'Manual') : 'Belum'}</span></button>`; }).join('') + '<p class="muted" style="margin-top:8px;font-size:13px">Ketuk nama untuk menandai hadir manual atau membatalkannya.</p>'
+          : '<div class="empty">Belum ada siswa di kelas ini.</div>');
     } else {
-      const dates = schedDates(k, rk.month), total = dates.length;
-      body += `<h3>Kelas ${esc(k)} <span class="muted" style="font-weight:400">(${total} hari jadwal sejauh ini)</span></h3>`
+      const total = schedDates(k, rk.month).length;
+      body = `<div class="summary"><b>${total}</b> hari jadwal kelas ${esc(k)} sejauh ini</div>`
         + (sts.length ? `<table><tr><th>Nama</th><th class="r">Hadir</th><th class="r">Persen</th></tr>`
           + sts.map(s => { const cnt = state.att.filter(a => a.code === s.code && a.date.startsWith(rk.month)).length; return `<tr><td>${esc(s.name)}</td><td class="r">${cnt}/${total}</td><td class="r">${total ? Math.min(100, Math.round(cnt/total*100)) : 0}%</td></tr>`; }).join('')
           + '</table>' : '<div class="empty">Belum ada siswa di kelas ini.</div>');
     }
-  });
+  }
+  const tabs = names.length > 1 ? `<div class="chips" style="margin-bottom:12px">${names.map(n => `<button class="chip ${n === k ? 'on' : ''}" data-k="${esc(n)}" onclick="rk.tab=this.dataset.k;vRekap()">${esc(n)}</button>`).join('')}</div>` : '';
+  const nStud = names.reduce((a, n) => a + state.students.filter(s => s.kelas === n).length, 0);
   $('view').innerHTML = `
     <div class="seg"><button class="${day ? 'on' : ''}" onclick="rk.mode='day';vRekap()">Harian</button><button class="${!day ? 'on' : ''}" onclick="rk.mode='month';vRekap()">Bulanan</button></div>
     <div class="row" style="margin-bottom:12px">
       <select onchange="rk.sel=this.value;vRekap()">${scopeOptions(rk.sel)}</select>
       ${day ? `<input type="date" value="${rk.date}" onchange="if(this.value){rk.date=this.value;vRekap()}">` : `<input type="month" value="${rk.month}" onchange="if(this.value){rk.month=this.value;vRekap()}">`}
     </div>
-    <div class="summary"><b>${names.length}</b> kelas, ${nStud} siswa. Ekspor Excel membuat satu sheet untuk setiap kelas.</div>
+    ${tabs}
     ${body}
-    <button class="btn block" style="margin-top:12px" onclick="exportRekap()" ${nStud ? '' : 'disabled'}>Ekspor ke Excel (.xlsx)</button>`;
+    <button class="btn block" style="margin-top:12px" onclick="exportRekap()" ${nStud ? '' : 'disabled'}>Ekspor Excel (1 file, 1 sheet per kelas)</button>
+    <p class="muted" style="font-size:13px">${day ? 'File harian hanya berisi kelas yang terjadwal pada tanggal ini.' : 'File bulanan hanya berisi kelas yang punya jadwal pada bulan ini.'} Kelas tiap sheet dipisah, tidak digabung.</p>`;
 }
+
 function toggleManual(c){
   const s = byCode(c); if(!s) return;
   const i = state.att.findIndex(a => a.date === rk.date && a.code === c);
@@ -757,7 +768,7 @@ function addClassSheet(wb, k, used){
   head(2, day ? 'Kelas '+k+', '+prettyDate(rk.date) : 'Kelas '+k+', bulan '+rk.month.slice(5)+'/'+rk.month.slice(0,4), 12);
   ws.getRow(1).height = 26;
   const HR = 4, hrow = ws.getRow(HR);
-  hrow.values = day ? ['No','Nama','NIS','Status','Jam'] : ['No','Nama','NIS', ...dates.map(d => d.slice(8)+'/'+d.slice(5,7)), 'Hadir','Total hari','Persen'];
+  hrow.values = day ? ['No','Nama','ID','Status','Jam'] : ['No','Nama','ID', ...dates.map(d => d.slice(8)+'/'+d.slice(5,7)), 'Hadir','Total hari','Persen'];
   hrow.height = 24;
   hrow.eachCell(c => {
     c.font = {bold:true, color:{argb:'FFFFFFFF'}};
@@ -805,31 +816,30 @@ function addClassSheet(wb, k, used){
   ws.views = [{state:'frozen', xSplit:2, ySplit:HR}];
   return true;
 }
+function loadExcel(){
+  return new Promise(res => {
+    if(typeof ExcelJS !== 'undefined') return res(true);
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
+    s.onload = () => res(typeof ExcelJS !== 'undefined');
+    s.onerror = () => res(false);
+    document.head.appendChild(s);
+    setTimeout(() => res(typeof ExcelJS !== 'undefined'), 15000);
+  });
+}
 async function exportRekap(){
-  if(typeof ExcelJS === 'undefined'){ toast('Pustaka Excel belum termuat, mengunduh CSV'); return exportCsv(); }
+  const names = rekapClasses();
+  if(!names.length){ toast(rk.mode === 'day' ? 'Tidak ada kelas yang terjadwal pada tanggal ini' : 'Belum ada kelas yang punya jadwal pada bulan ini'); return; }
+  if(!(await loadExcel())){ toast('Pustaka Excel gagal dimuat. Periksa internet lalu coba lagi.'); return; }
   const wb = new ExcelJS.Workbook(), used = new Set();
   let made = 0;
-  scopeClasses(rk.sel).forEach(k => { if(addClassSheet(wb, k, used)) made++; });
-  if(!made){ toast('Belum ada siswa untuk diekspor'); return; }
+  names.forEach(k => { if(addClassSheet(wb, k, used)) made++; });
+  if(!made){ toast('Belum ada siswa di kelas yang diekspor'); return; }
   const name = (rk.mode === 'day' ? 'Absen_Dzuhur_'+scopeLabel()+'_'+rk.date : 'Rekap_Dzuhur_'+scopeLabel()+'_'+rk.month)+'.xlsx';
   try{
     const buf = await wb.xlsx.writeBuffer();
     download(name, buf, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-  } catch(e){ toast('Gagal membuat file Excel, mengunduh CSV'); exportCsv(); }
-}
-function exportCsv(){
-  const rows = [], day = rk.mode === 'day';
-  const rec = new Map(state.att.filter(a => a.date === rk.date).map(a => [a.code, a]));
-  rows.push(day ? ['No','Kelas','Nama','NIS','Status','Jam'] : ['No','Kelas','Nama','NIS','Hadir','Total hari','Persen']);
-  let i = 1;
-  scopeClasses(rk.sel).forEach(k => {
-    const total = day ? 0 : schedDates(k, rk.month).length;
-    state.students.filter(s => s.kelas === k).sort(byName).forEach(s => {
-      if(day){ const a = rec.get(s.code); rows.push([i++, k, s.name, s.nis, a ? 'Hadir' : 'Belum', a ? (a.time || 'Manual') : '']); }
-      else { const cnt = state.att.filter(a => a.code === s.code && a.date.startsWith(rk.month)).length; rows.push([i++, k, s.name, s.nis, cnt, total, (total ? Math.min(100, Math.round(cnt/total*100)) : 0)+'%']); }
-    });
-  });
-  download((day ? 'Absen_Dzuhur_'+scopeLabel()+'_'+rk.date : 'Rekap_Dzuhur_'+scopeLabel()+'_'+rk.month)+'.csv', toCsv(rows), 'text/csv;charset=utf-8');
+  } catch(e){ toast('Gagal membuat file Excel'); }
 }
 
 /* ============ Pengaturan: kelas ============ */
@@ -910,6 +920,7 @@ function saveClass(i){
     if(lastKelas === old) lastKelas = name;
     if(filt === 'c:'+old) filt = 'c:'+name;
     if(rk.sel === 'c:'+old) rk.sel = 'c:'+name;
+    if(rk.tab === old) rk.tab = name;
   }
   c.name = name; c.group = group;
   cfgChanged(); closeModal(); vSet(); toast('Kelas diperbarui');
